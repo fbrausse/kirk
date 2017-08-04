@@ -5,8 +5,7 @@ using std::shared_ptr;
 
 using iRRAM::REAL;
 
-using kirk::irram::machine;
-using kirk::irram::out_real;
+using kirk::irram::eval;
 
 struct cnst_real {
 	kirk_real_t parent;
@@ -47,9 +46,9 @@ static void my_exp(const REAL *in, REAL *out) { out[0] = exp(in[0]); }
 /* could be part of iRRAM's "kirk" C-API */
 extern "C" kirk_real_t * iRRAM_kirk_exp(kirk_real_t *x)
 {
-	kirk_real_t *in[] = {x};
-	auto p = machine::create(in, 1, 1, my_exp);
-	return new out_real(move(p), 0);
+	kirk_real_t *in[] = {x}, *out[1];
+	auto p = kirk::irram::eval(in, 1, out, 1, my_exp);
+	return out[0];
 }
 
 int main(int argc, char **argv)

@@ -1,4 +1,10 @@
 
+#include <shared_mutex>		/* std::shared_timed_mutex */
+#include <atomic>		/* std::atomic_bool */
+#include <thread>
+
+#include <iRRAM/lib.h>
+
 #include "kirk-iRRAM.hh"
 
 using std::unique_lock;
@@ -14,6 +20,89 @@ using iRRAM::DYADIC;
 using iRRAM::sizetype;
 
 using namespace kirk::irram;
+
+typedef std::shared_ptr<kirk::irram::machine> machine_t;
+
+/* --------------------------------------------------------------------------
+ * helper classes:
+ *   real_out_sock: iRRAM will store the computed approximations there
+ *   out_real     : kirk_real_t-interface, connecting to a real_out_sock
+ * -------------------------------------------------------------------------- */
+
+namespace {
+
+struct real_out_sock {
+	std::shared_timed_mutex     mtx;
+	std::condition_variable_any cond;
+	::kirk_apx_t                apx;
+	::kirk_eff_t                effort;
+	::kirk_abs_t                accuracy;
+
+	real_out_sock();
+
+	/* called by process::computation_finished() with a result */
+	void offer(const iRRAM::DYADIC &d, const iRRAM::sizetype &err);
+};
+
+struct out_real : ::kirk_real_t {
+	machine_t proc;
+	size_t    out_idx;
+
+	explicit out_real(machine_t proc, size_t out_idx);
+
+	kirk_ret_t request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const;
+	kirk_ret_t request_eff(::kirk_apx_t *apx, ::kirk_eff_t e) const;
+};
+
+struct kirk_real_unref_del {
+	void operator()(::kirk_real_t *r) { ::kirk_real_unref(r); }
+};
+
+} /* end anon namespace */
+
+/* --------------------------------------------------------------------------
+ * machine
+ * -------------------------------------------------------------------------- */
+
+struct kirk::irram::machine : std::enable_shared_from_this<machine> {
+
+	std::vector<std::unique_ptr<::kirk_real_t,kirk_real_unref_del>> inputs;
+	std::vector<real_out_sock> outputs;
+
+	std::atomic_bool cancelled;
+	/* protects max_(effort|accuracy)_requested and output_requested */
+	std::mutex mtx_outputs;
+	std::condition_variable output_requested;
+	::kirk_eff_t max_effort_requested;
+	::kirk_abs_t max_accuracy_requested;
+
+	void computation_prepare(std::vector<iRRAM::REAL> &in);
+	void computation_finished(const std::vector<iRRAM::REAL> &out);
+
+	static int compute(std::weak_ptr<machine> wp, func_type f);
+
+	void exec(func_type f);
+	void run(::kirk_abs_t a);
+	void run(::kirk_eff_t e);
+
+	machine(::kirk_real_t *const *in, size_t n_in, size_t n_out);
+	~machine();
+};
+
+machine_t kirk::irram::eval(::kirk_real_t *const *in, size_t n_in,
+                            ::kirk_real_t **out     , size_t n_out,
+                            func_type f)
+{
+	machine_t p = std::make_shared<machine>(in, n_in, n_out);
+	p->exec(move(f));
+	for (size_t i=0; i<n_out; i++)
+		out[i] = new out_real(p, i);
+	return p;
+}
+
+/* --------------------------------------------------------------------------
+ * real_out_sock
+ * -------------------------------------------------------------------------- */
 
 static ::kirk_abs_t to_accuracy(sizetype err)
 {
@@ -53,10 +142,7 @@ void real_out_sock::offer(const DYADIC &d, const sizetype &err)
  * machine
  * -------------------------------------------------------------------------- */
 
-machine::machine(::kirk_real_t *const *in,
-                 size_t n_in,
-                 size_t n_out,
-                 machine::hide_constructor)
+machine::machine(::kirk_real_t *const *in, size_t n_in, size_t n_out)
 : outputs(n_out)
 , cancelled(false)
 {
