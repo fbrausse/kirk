@@ -94,20 +94,22 @@ KIRK_API        int kirk_bound_less_2exp(const kirk_bound_t *, int32_t);
 KIRK_API inline kirk_real_t * kirk_real_ref  (kirk_real_t *);
 KIRK_API inline void          kirk_real_unref(kirk_real_t *);
 
-KIRK_API inline kirk_ret_t    kirk_real_apx_abs(const kirk_real_t *,
+KIRK_API inline void          kirk_real_apx_abs(const kirk_real_t *,
                                                 kirk_apx_t *,
                                                 kirk_abs_t);
 
-KIRK_API inline kirk_ret_t    kirk_real_apx_eff(const kirk_real_t *,
+KIRK_API inline void          kirk_real_apx_eff(const kirk_real_t *,
                                                 kirk_apx_t *,
                                                 kirk_eff_t);
 
 /* helper functions to implement all of the required approx functions */
-KIRK_API        kirk_ret_t    kirk_real_apx_abs_eff(const kirk_real_t *,
+
+/* Use effort-based unbounded search to approximate r. */
+KIRK_API        void          kirk_real_apx_abs_eff(const kirk_real_t *r,
                                                     kirk_apx_t *,
                                                     kirk_abs_t);
 
-KIRK_API inline kirk_ret_t    kirk_real_apx_eff_abs(const kirk_real_t *,
+KIRK_API inline void          kirk_real_apx_eff_abs(const kirk_real_t *,
                                                     kirk_apx_t *,
                                                     kirk_eff_t);
 
@@ -151,9 +153,10 @@ struct kirk_real_class_t {
 
 	/* signatures for approximating reals */
 	/* all of the below three function pointers must be non-NULL, also see
-	 * the kirk_real_apx_(abs|eff)_(abs|eff)() helper functions */
-	kirk_ret_t (*apx_abs)(const kirk_real_t *, kirk_apx_t *, kirk_abs_t);
-	kirk_ret_t (*apx_eff)(const kirk_real_t *, kirk_apx_t *, kirk_eff_t);
+	 * the kirk_real_apx_(abs|eff)_(abs|eff)() helper functions
+	 * In order to represent Reals, these functions must not fail */
+	void (*apx_abs)(const kirk_real_t *, kirk_apx_t *, kirk_abs_t);
+	void (*apx_eff)(const kirk_real_t *, kirk_apx_t *, kirk_eff_t);
 
 	/* further details are implementation-defined:
 	 * do not use the size of this struct */
@@ -247,21 +250,19 @@ inline void kirk_real_unref(kirk_real_t *r)
 	r->clazz->unref(r);
 }
 
-inline kirk_ret_t kirk_real_apx_abs(const kirk_real_t *r, kirk_apx_t *apx, kirk_abs_t a)
+inline void kirk_real_apx_abs(const kirk_real_t *r, kirk_apx_t *apx, kirk_abs_t a)
 {
-	return r->clazz->apx_abs(r, apx, a);
+	r->clazz->apx_abs(r, apx, a);
 }
 
-inline kirk_ret_t kirk_real_apx_eff(const kirk_real_t *r, kirk_apx_t *apx, kirk_eff_t e)
+inline void kirk_real_apx_eff(const kirk_real_t *r, kirk_apx_t *apx, kirk_eff_t e)
 {
-	return r->clazz->apx_eff(r, apx, e);
+	r->clazz->apx_eff(r, apx, e);
 }
 
-inline kirk_ret_t kirk_real_apx_eff_abs(const kirk_real_t *r,
-                                        kirk_apx_t *apx,
-                                        kirk_eff_t e)
+inline void kirk_real_apx_eff_abs(const kirk_real_t *r, kirk_apx_t *apx, kirk_eff_t e)
 {
-	return kirk_real_apx_abs(r, apx, -e);
+	kirk_real_apx_abs(r, apx, -e);
 }
 
 #ifdef __cplusplus

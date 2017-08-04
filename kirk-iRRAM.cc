@@ -78,8 +78,8 @@ struct out_real : ::kirk_real_t {
 
 	explicit out_real(machine_t proc, size_t out_idx);
 
-	kirk_ret_t request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const;
-	kirk_ret_t request_eff(::kirk_apx_t *apx, ::kirk_eff_t e) const;
+	void request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const;
+	void request_eff(::kirk_apx_t *apx, ::kirk_eff_t e) const;
 };
 
 struct kirk_real_unref_del {
@@ -312,12 +312,12 @@ static void real_unref(::kirk_real_t *r)
 	delete static_cast<out_real *>(r);
 }
 
-static ::kirk_ret_t real_apx_abs(const ::kirk_real_t *r, ::kirk_apx_t *apx, ::kirk_abs_t a)
+static void real_apx_abs(const ::kirk_real_t *r, ::kirk_apx_t *apx, ::kirk_abs_t a)
 {
 	return static_cast<const out_real *>(r)->request_abs(apx, a);
 }
 /*
-static ::kirk_ret_t real_apx_eff(const ::kirk_real_t *r, ::kirk_apx_t *apx, ::kirk_eff_t e)
+static void real_apx_eff(const ::kirk_real_t *r, ::kirk_apx_t *apx, ::kirk_eff_t e)
 {
 	return static_cast<const out_real *>(r)->request_eff(apx, e);
 }
@@ -339,7 +339,7 @@ out_real::out_real(std::shared_ptr<machine> proc, size_t out_idx)
 , out_idx(out_idx)
 {}
 
-::kirk_ret_t out_real::request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const
+void out_real::request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const
 {
 	real_out_sock &os = proc->outputs[out_idx];
 	//KIRK_SOCK_DEBUG("::get w/ effort %u\n", e);
@@ -347,10 +347,9 @@ out_real::out_real(std::shared_ptr<machine> proc, size_t out_idx)
 	proc->run(os, a);
 	os.cond.wait(lock, [&]{return a >= os.accuracy;});
 	kirk_apx_cpy(apx, &os.apx);
-	return KIRK_SUCCESS;
 }
 /*
-::kirk_ret_t out_real::request_eff(::kirk_apx_t *apx, ::kirk_eff_t e) const
+void out_real::request_eff(::kirk_apx_t *apx, ::kirk_eff_t e) const
 {
 	real_out_sock &os = proc->outputs[out_idx];
 	//KIRK_SOCK_DEBUG("::get w/ effort %u\n", e);
@@ -358,6 +357,5 @@ out_real::out_real(std::shared_ptr<machine> proc, size_t out_idx)
 	proc->run(e);
 	os.cond.wait(lock, [&]{return e <= os.effort;});
 	kirk_apx_cpy(apx, &os.apx);
-	return KIRK_SUCCESS;
 }
 */

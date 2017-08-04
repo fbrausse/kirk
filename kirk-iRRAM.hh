@@ -13,7 +13,7 @@ namespace kirk { namespace irram {
 
 class machine;
 
-typedef std::function<void(const iRRAM::REAL *,iRRAM::REAL *)> func_type;
+typedef std::function<void(const iRRAM::REAL *in,iRRAM::REAL *out)> func_type;
 
 std::shared_ptr<machine> eval(::kirk_real_t *const *in, size_t n_in,
                               ::kirk_real_t **out     , size_t n_out,

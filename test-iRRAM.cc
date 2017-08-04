@@ -20,18 +20,16 @@ static void set_approx(struct kirk_apx_t *apx, double d, kirk_abs_t a)
 	apx->radius.exponent = a;
 }
 
-static kirk_ret_t cnst_approx_abs(const struct kirk_real_t *r, kirk_apx_t *apx, kirk_abs_t a)
+static void cnst_approx_abs(const struct kirk_real_t *r, kirk_apx_t *apx, kirk_abs_t a)
 {
 	const struct cnst_real *cr = (const struct cnst_real *)r;
 	set_approx(apx, cr->value, a);
-	return KIRK_SUCCESS;
 }
 
-static kirk_ret_t cnst_approx_eff(const struct kirk_real_t *r, kirk_apx_t *apx, kirk_eff_t e)
+static void cnst_approx_eff(const struct kirk_real_t *r, kirk_apx_t *apx, kirk_eff_t e)
 {
 	const struct cnst_real *cr = (const struct cnst_real *)r;
 	set_approx(apx, cr->value, -e);
-	return KIRK_SUCCESS;
 }
 
 static const struct kirk_real_class_t cnst_class = {
