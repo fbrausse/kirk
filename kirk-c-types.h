@@ -28,7 +28,7 @@
 
 #ifdef __cplusplus
 # ifdef KIRK_INTERNAL
-#  error support for extern-inline is required to compile kirk-c as C++; \
+#  error support for extern-inline is required to compile kirk as C++; \
          it has not been implemented
 # endif
 extern "C" {
@@ -72,13 +72,13 @@ KIRK_API        uint32_t  kirk_version(void);
  * kirk_context_t structure */
 
 KIRK_API inline kirk_context_t * kirk_context_ref  (kirk_context_t *);
-KIRK_API inline void            kirk_context_unref(kirk_context_t *);
-KIRK_API inline const char *    kirk_context_get_name(const kirk_context_t *);
+KIRK_API inline void             kirk_context_unref(kirk_context_t *);
+KIRK_API inline const char *     kirk_context_get_name(const kirk_context_t *);
 /*
 KIRK_API inline kirk_ret_t kirk_context_spawn   (kirk_context_t *,
-                                              kirk_computation_t *);
+                                                 kirk_computation_t *);
 KIRK_API inline kirk_ret_t kirk_context_detach  (kirk_context_t *,
-                                              kirk_computation_t *);
+                                                 kirk_computation_t *);
 
 */
 #endif
@@ -92,24 +92,24 @@ KIRK_API        int kirk_bound_less     (const kirk_bound_t *, const kirk_bound_
 KIRK_API        int kirk_bound_less_2exp(const kirk_bound_t *, int32_t);
 
 KIRK_API inline kirk_real_t * kirk_real_ref  (kirk_real_t *);
-KIRK_API inline void         kirk_real_unref(kirk_real_t *);
+KIRK_API inline void          kirk_real_unref(kirk_real_t *);
 
 KIRK_API inline kirk_ret_t    kirk_real_apx_abs(const kirk_real_t *,
-                                             kirk_apx_t *,
-                                             kirk_abs_t);
+                                                kirk_apx_t *,
+                                                kirk_abs_t);
 
 KIRK_API inline kirk_ret_t    kirk_real_apx_eff(const kirk_real_t *,
-                                             kirk_apx_t *,
-                                             kirk_eff_t);
+                                                kirk_apx_t *,
+                                                kirk_eff_t);
 
 /* helper functions to implement all of the required approx functions */
 KIRK_API        kirk_ret_t    kirk_real_apx_abs_eff(const kirk_real_t *,
-                                                 kirk_apx_t *,
-                                                 kirk_abs_t);
+                                                    kirk_apx_t *,
+                                                    kirk_abs_t);
 
 KIRK_API inline kirk_ret_t    kirk_real_apx_eff_abs(const kirk_real_t *,
-                                                 kirk_apx_t *,
-                                                 kirk_eff_t);
+                                                    kirk_apx_t *,
+                                                    kirk_eff_t);
 
 /* ==========================================================================
  * KIRK data types
@@ -123,13 +123,13 @@ KIRK_API inline kirk_ret_t    kirk_real_apx_eff_abs(const kirk_real_t *,
 struct kirk_context_class_t {
 	/* mandatory interface */
 	kirk_context_t * (*ref        )(kirk_context_t *);
-	void            (*unref      )(kirk_context_t *);
-	const char *    (*get_name   )(const kirk_context_t *);
+	void             (*unref      )(kirk_context_t *);
+	const char *     (*get_name   )(const kirk_context_t *);
 
 	/* optional interface */
 	kirk_ret_t       (*get_feature)(const kirk_context_t *, const char *key);
 	kirk_ret_t       (*set_feature)(kirk_context_t *,
-	                               const char *key, const char *value);
+	                                const char *key, const char *value);
 	/* further details are implementation-defined:
 	 * do not use the size of this struct */
 };
@@ -147,7 +147,7 @@ struct kirk_context_t {
 
 struct kirk_real_class_t {
 	kirk_real_t * (*ref    )(kirk_real_t *);
-	void         (*unref  )(kirk_real_t *);
+	void          (*unref  )(kirk_real_t *);
 
 	/* signatures for approximating reals */
 	/* all of the below three function pointers must be non-NULL, also see
@@ -181,7 +181,7 @@ struct kirk_bound_t {
 /* approximation type: [center +/- radius] */
 struct kirk_apx_t {
 	kirk_bound_t radius;
-	mpfr_t      center;
+	mpfr_t       center;
 };
 
 /* ==========================================================================
@@ -258,8 +258,8 @@ inline kirk_ret_t kirk_real_apx_eff(const kirk_real_t *r, kirk_apx_t *apx, kirk_
 }
 
 inline kirk_ret_t kirk_real_apx_eff_abs(const kirk_real_t *r,
-                                      kirk_apx_t *apx,
-                                      kirk_eff_t e)
+                                        kirk_apx_t *apx,
+                                        kirk_eff_t e)
 {
 	return kirk_real_apx_abs(r, apx, -e);
 }
