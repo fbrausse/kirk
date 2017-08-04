@@ -1,10 +1,12 @@
 
 #include "kirk-iRRAM.hh"
 
-using iRRAM::REAL;
-using iRRAM::kirk::process;
-using iRRAM::kirk::out_real;
 using std::shared_ptr;
+
+using iRRAM::REAL;
+
+using kirk::irram::machine;
+using kirk::irram::out_real;
 
 struct cnst_real {
 	kirk_real_t parent;
@@ -46,7 +48,7 @@ static void my_exp(const REAL *in, REAL *out) { out[0] = exp(in[0]); }
 extern "C" kirk_real_t * iRRAM_kirk_exp(kirk_real_t *x)
 {
 	kirk_real_t *in[] = {x};
-	shared_ptr<process> p = process::create(in, 1, 1, my_exp);
+	auto p = machine::create(in, 1, 1, my_exp);
 	return new out_real(move(p), 0);
 }
 

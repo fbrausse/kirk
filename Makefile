@@ -10,7 +10,7 @@ C_OBJS = \
 
 CC_OBJS = \
 	kirk-iRRAM.o \
-	test.o
+	test-iRRAM.o
 
 IRRAM = $(realpath $(HOME)/iRRAM/installed)
 

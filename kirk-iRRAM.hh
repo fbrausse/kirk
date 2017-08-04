@@ -10,7 +10,7 @@
 
 #include "kirk-c-types.h"
 
-namespace iRRAM { namespace kirk {
+namespace kirk { namespace irram {
 
 struct real_out_sock {
 	std::shared_timed_mutex     mtx;
@@ -22,14 +22,17 @@ struct real_out_sock {
 	real_out_sock();
 
 	/* called by process::computation_finished() with a result */
-	void offer(const DYADIC &d, const sizetype &err);
+	void offer(const iRRAM::DYADIC &d, const iRRAM::sizetype &err);
 };
 
 struct kirk_real_unref_del {
 	void operator()(::kirk_real_t *r) { ::kirk_real_unref(r); }
 };
 
-class process : public std::enable_shared_from_this<process> {
+class machine;
+typedef std::shared_ptr<machine> machine_t;
+
+class machine : public std::enable_shared_from_this<machine> {
 	std::vector<std::unique_ptr<::kirk_real_t,kirk_real_unref_del>> inputs;
 	std::vector<real_out_sock> outputs;
 
@@ -44,26 +47,30 @@ class process : public std::enable_shared_from_this<process> {
 	struct hide_constructor {};
 
 public:
-	process(::kirk_real_t *const *in, size_t n_in, size_t n_out, hide_constructor);
-	~process();
+	typedef std::function<void(const iRRAM::REAL *,iRRAM::REAL *)> func_type;
 
-	static std::shared_ptr<process> create(::kirk_real_t *const *in,
-	                                       size_t n_in,
-	                                       size_t n_out,
-	                                       std::function<void(const REAL *,REAL *)> f)
+	machine(::kirk_real_t *const *in, size_t n_in, size_t n_out,
+	        hide_constructor);
+	~machine();
+
+	static machine_t create(::kirk_real_t *const *in,
+	                        size_t n_in,
+	                        size_t n_out,
+	                        func_type f)
 	{
-		std::shared_ptr<process> p = std::make_shared<process>(in, n_in, n_out, hide_constructor{});
+		machine_t p = std::make_shared<machine>(in, n_in, n_out,
+		                                        hide_constructor{});
 		p->exec(move(f));
 		return p;
 	}
 
 private:
-	void computation_prepare(std::vector<REAL> &in);
-	void computation_finished(const std::vector<REAL> &out);
+	void computation_prepare(std::vector<iRRAM::REAL> &in);
+	void computation_finished(const std::vector<iRRAM::REAL> &out);
 
-	static int compute(std::weak_ptr<process> wp, std::function<void(const REAL *,REAL *)> f);
+	static int compute(std::weak_ptr<machine> wp, func_type f);
 
-	void exec(std::function<void(const REAL *,REAL *)> f);
+	void exec(func_type f);
 	void run(::kirk_abs_t a);
 	void run(::kirk_eff_t e);
 
@@ -72,10 +79,10 @@ private:
 };
 
 extern "C" struct out_real : ::kirk_real_t {
-	std::shared_ptr<process> proc;
-	size_t out_idx;
+	machine_t proc;
+	size_t    out_idx;
 
-	explicit out_real(std::shared_ptr<process> proc, size_t out_idx);
+	explicit out_real(machine_t proc, size_t out_idx);
 
 	kirk_ret_t request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const;
 	kirk_ret_t request_eff(::kirk_apx_t *apx, ::kirk_eff_t e) const;

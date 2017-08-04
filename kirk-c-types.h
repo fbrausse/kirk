@@ -38,7 +38,7 @@ extern "C" {
 
 /* <  0: error, negative errno
  * >= 0: success */
-typedef int32_t                        kirk_ret_t;
+typedef int32_t                         kirk_ret_t;
 
 #define KIRK_ERR(no)		(-(int32_t)((uint32_t)(no) << 12))
 enum kirk_err_t {

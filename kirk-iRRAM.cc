@@ -9,8 +9,11 @@ using std::unique_ptr;
 using std::shared_ptr;
 using std::weak_ptr;
 
-using namespace iRRAM;
-using namespace kirk;
+using iRRAM::REAL;
+using iRRAM::DYADIC;
+using iRRAM::sizetype;
+
+using namespace kirk::irram;
 
 static ::kirk_abs_t to_accuracy(sizetype err)
 {
@@ -29,7 +32,7 @@ real_out_sock::real_out_sock()
 
 void real_out_sock::offer(const DYADIC &d, const sizetype &err)
 {
-	//iRRAM_SOCK_DEBUG("::put w/ effort %u\n",e);
+	//KIRK_SOCK_DEBUG("::put w/ effort %u\n",e);
 	std::unique_lock<decltype(mtx)> lock(mtx);
 
 	/* set apx */
@@ -40,20 +43,20 @@ void real_out_sock::offer(const DYADIC &d, const sizetype &err)
 
 	/* record accuracy and effort */
 	accuracy = to_accuracy(err);
-	effort = (unsigned)state.ACTUAL_STACK.prec_step;
+	effort = (unsigned)iRRAM::state.ACTUAL_STACK.prec_step;
 
 	/* notify every out_real waiting on us */
 	cond.notify_all();
 }
 
 /* --------------------------------------------------------------------------
- * process
+ * machine
  * -------------------------------------------------------------------------- */
 
-process::process(::kirk_real_t *const *in,
+machine::machine(::kirk_real_t *const *in,
                  size_t n_in,
                  size_t n_out,
-                 process::hide_constructor)
+                 machine::hide_constructor)
 : outputs(n_out)
 , cancelled(false)
 {
@@ -62,18 +65,18 @@ process::process(::kirk_real_t *const *in,
 		inputs.emplace_back(::kirk_real_ref(in[i]));
 }
 
-process::~process()
+machine::~machine()
 {
 	cancelled = true;
 	output_requested.notify_one();
 }
 
-void process::computation_prepare(vector<REAL> &in)
+void machine::computation_prepare(vector<REAL> &in)
 {
 	in.reserve(inputs.size());
 	::kirk_apx_t apx;
-	::kirk_abs_t acc = state.ACTUAL_STACK.actual_prec;
-	::kirk_eff_t eff = (unsigned)state.ACTUAL_STACK.prec_step;
+	::kirk_abs_t acc = iRRAM::state.ACTUAL_STACK.actual_prec;
+//	::kirk_eff_t eff = (unsigned)iRRAM::state.ACTUAL_STACK.prec_step;
 	::kirk_apx_init2(&apx, -acc);
 	DYADIC dd;
 
@@ -90,7 +93,7 @@ void process::computation_prepare(vector<REAL> &in)
 	::kirk_apx_fini(&apx);
 }
 
-void process::computation_finished(const vector<REAL> &out)
+void machine::computation_finished(const vector<REAL> &out)
 {
 	unique_lock<decltype(mtx_outputs)> lock(mtx_outputs);
 	/* mtx_out: get lock on outputs busy */
@@ -102,22 +105,22 @@ void process::computation_finished(const vector<REAL> &out)
 	}
 	/* release mtx_out */
 
-	//iRRAM_PROCESS_DEBUG("%s", " finished computation g()\n");
+	//KIRK_MACHINE_DEBUG("%s", " finished computation g()\n");
 	output_requested.wait(lock, [this]{
 		return cancelled ||
-		       (unsigned)state.ACTUAL_STACK.prec_step < max_effort_requested ||
-		       state.ACTUAL_STACK.actual_prec > max_accuracy_requested;
+		       (unsigned)iRRAM::state.ACTUAL_STACK.prec_step < max_effort_requested ||
+		       iRRAM::state.ACTUAL_STACK.actual_prec > max_accuracy_requested;
 	});
 }
 
-int process::compute(std::weak_ptr<process> wp, std::function<void(const REAL *,REAL *)> f)
+int machine::compute(std::weak_ptr<machine> wp, func_type f)
 {
-	//iRRAM_PROCESS_DEBUG(" itkirkting w/ effort %u...\n",
+	//KIRK_MACHINE_DEBUG(" iterating w/ effort %u...\n",
 	//		    (effort_t)state.ACTUAL_STACK.prec_step);
-	state.infinite = 0;
+	iRRAM::state.infinite = 0;
 	std::vector<REAL> in, out;
 
-	if (std::shared_ptr<process> p = wp.lock()) {
+	if (std::shared_ptr<machine> p = wp.lock()) {
 		out.resize(p->outputs.size());
 		p->computation_prepare(in);
 	} else
@@ -129,17 +132,17 @@ int process::compute(std::weak_ptr<process> wp, std::function<void(const REAL *,
 		locked_outputs.push_back(s.lock());*/
 	f(in.data(), out.data());
 
-	if (std::shared_ptr<process> p = wp.lock()) {
+	if (std::shared_ptr<machine> p = wp.lock()) {
 		p->computation_finished(out);
-		state.infinite = !p->cancelled;
+		iRRAM::state.infinite = !p->cancelled;
 	}
 
 	return 0;
 }
 
-void process::exec(std::function<void(const REAL *,REAL *)> f)
+void machine::exec(std::function<void(const REAL *,REAL *)> f)
 {
-	std::weak_ptr<process> wp = shared_from_this();
+	std::weak_ptr<machine> wp = shared_from_this();
 	std::thread([wp,f]{
 		try {
 			iRRAM::exec(compute, wp, f);
@@ -148,7 +151,7 @@ void process::exec(std::function<void(const REAL *,REAL *)> f)
 	}).detach();
 }
 
-void process::run(::kirk_abs_t a)
+void machine::run(::kirk_abs_t a)
 {
 	{
 		std::unique_lock<decltype(mtx_outputs)> lock(mtx_outputs);
@@ -157,10 +160,10 @@ void process::run(::kirk_abs_t a)
 			output_requested.notify_one();
 		}
 	}
-	//iRRAM_PROCESS_DEBUG("::run_abs(%u)\n", a);
+	//KIRK_MACHINE_DEBUG("::run_abs(%u)\n", a);
 }
 
-void process::run(::kirk_eff_t e)
+void machine::run(::kirk_eff_t e)
 {
 	{
 		std::unique_lock<decltype(mtx_outputs)> lock(mtx_outputs);
@@ -169,7 +172,7 @@ void process::run(::kirk_eff_t e)
 			output_requested.notify_one();
 		}
 	}
-	//iRRAM_PROCESS_DEBUG("::run_eff(%u)\n", e);
+	//KIRK_MACHINE_DEBUG("::run_eff(%u)\n", e);
 }
 
 /* --------------------------------------------------------------------------
@@ -207,7 +210,7 @@ static const ::kirk_real_class_t real_class = {
  * out_real
  * -------------------------------------------------------------------------- */
 
-out_real::out_real(std::shared_ptr<process> proc, size_t out_idx)
+out_real::out_real(std::shared_ptr<machine> proc, size_t out_idx)
 : ::kirk_real_t { &real_class, }
 , proc(move(proc))
 , out_idx(out_idx)
@@ -216,21 +219,22 @@ out_real::out_real(std::shared_ptr<process> proc, size_t out_idx)
 ::kirk_ret_t out_real::request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const
 {
 	real_out_sock &os = proc->outputs[out_idx];
-	//iRRAM_SOCK_DEBUG("::get w/ effort %u\n", e);
+	//KIRK_SOCK_DEBUG("::get w/ effort %u\n", e);
 	std::shared_lock<decltype(os.mtx)> lock(os.mtx);
 	proc->run(a);
 	os.cond.wait(lock, [&]{return a >= os.accuracy;});
 	kirk_apx_cpy(apx, &os.apx);
 	return KIRK_SUCCESS;
 }
-
+/*
 ::kirk_ret_t out_real::request_eff(::kirk_apx_t *apx, ::kirk_eff_t e) const
 {
 	real_out_sock &os = proc->outputs[out_idx];
-	//iRRAM_SOCK_DEBUG("::get w/ effort %u\n", e);
+	//KIRK_SOCK_DEBUG("::get w/ effort %u\n", e);
 	std::shared_lock<decltype(os.mtx)> lock(os.mtx);
 	proc->run(e);
 	os.cond.wait(lock, [&]{return e <= os.effort;});
 	kirk_apx_cpy(apx, &os.apx);
 	return KIRK_SUCCESS;
 }
+*/
