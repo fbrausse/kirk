@@ -1,0 +1,4 @@
+The iRRAM-backend of version of kirk depends on my master-branch of iRRAM,
+	<https://github.com/fbrausse/iRRAM>
+which only compiles using the 5.x series of g++ or any clang++. Sorry for the
+inconvenience, this will change in the near future.
