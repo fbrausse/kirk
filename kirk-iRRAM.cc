@@ -32,16 +32,18 @@ typedef std::shared_ptr<kirk::irram::machine> machine_t;
 namespace {
 
 struct real_out_sock {
-	std::shared_timed_mutex     mtx;
+	std::shared_timed_mutex     mtx; /* protects apx, accuracy */
 	std::condition_variable_any cond;
 	::kirk_apx_t                apx;
-	::kirk_eff_t                effort;
+	/* stored */
 	::kirk_abs_t                accuracy;
+	/* requested */
+	std::atomic<::kirk_abs_t>   req_accuracy;
 
 	real_out_sock();
 
 	/* called by process::computation_finished() with a result */
-	void offer(const iRRAM::DYADIC &d, const iRRAM::sizetype &err);
+	bool offer(const iRRAM::DYADIC &d, const iRRAM::sizetype &err);
 };
 
 struct out_real : ::kirk_real_t {
@@ -70,11 +72,15 @@ struct kirk::irram::machine : std::enable_shared_from_this<machine> {
 	std::vector<real_out_sock> outputs;
 
 	std::atomic_bool cancelled;
-	/* protects max_(effort|accuracy)_requested and output_requested */
+	/* protects
+	 * - max_effort_(requested|computed)
+	 * - more_accuracy_requested and
+	 * - output_requested */
 	std::mutex mtx_outputs;
+	::kirk_eff_t max_effort_computed;
 	std::condition_variable output_requested;
 	::kirk_eff_t max_effort_requested;
-	::kirk_abs_t max_accuracy_requested;
+	bool more_accuracy_requested;
 
 	void computation_prepare(std::vector<iRRAM::REAL> &in);
 	void computation_finished(const std::vector<iRRAM::REAL> &out);
@@ -82,8 +88,8 @@ struct kirk::irram::machine : std::enable_shared_from_this<machine> {
 	static int compute(std::weak_ptr<machine> wp, func_type f);
 
 	void exec(func_type f);
-	void run(::kirk_abs_t a);
-	void run(::kirk_eff_t e);
+	void run(real_out_sock &os, ::kirk_abs_t a);
+	void run(real_out_sock &os, ::kirk_eff_t e);
 
 	machine(::kirk_real_t *const *in, size_t n_in, size_t n_out);
 	~machine();
@@ -113,13 +119,19 @@ static ::kirk_abs_t to_accuracy(sizetype err)
 	return err.exponent;
 }
 
+static ::kirk_eff_t current_iRRAM_effort()
+{
+	return (unsigned)iRRAM::state.ACTUAL_STACK.prec_step;
+}
+
 real_out_sock::real_out_sock()
-: effort(0)
+: accuracy(INT32_MAX)
+, req_accuracy(INT32_MAX)
 {
 	::kirk_apx_init(&apx);
 }
 
-void real_out_sock::offer(const DYADIC &d, const sizetype &err)
+bool real_out_sock::offer(const DYADIC &d, const sizetype &err)
 {
 	//KIRK_SOCK_DEBUG("::put w/ effort %u\n",e);
 	std::unique_lock<decltype(mtx)> lock(mtx);
@@ -132,10 +144,11 @@ void real_out_sock::offer(const DYADIC &d, const sizetype &err)
 
 	/* record accuracy and effort */
 	accuracy = to_accuracy(err);
-	effort = (unsigned)iRRAM::state.ACTUAL_STACK.prec_step;
 
 	/* notify every out_real waiting on us */
 	cond.notify_all();
+
+	return accuracy <= req_accuracy;
 }
 
 /* --------------------------------------------------------------------------
@@ -173,6 +186,7 @@ void machine::computation_prepare(vector<REAL> &in)
 		sizetype_normalize(err);
 		swap(*dd.value, *apx.center);
 		in.emplace_back(dd);
+		in.back().seterror(err);
 	}
 	/* release mtx_in */
 
@@ -185,17 +199,20 @@ void machine::computation_finished(const vector<REAL> &out)
 	/* mtx_out: get lock on outputs busy */
 	DYADIC d;
 	sizetype err;
+	bool all_enough = true;
 	for (size_t i=0; i<outputs.size(); i++) {
 		out[i].to_formal_ball(d, err);
-		outputs[i].offer(d, err);
+		all_enough &= outputs[i].offer(d, err);
 	}
+	more_accuracy_requested = !all_enough;
+	max_effort_computed = current_iRRAM_effort();
 	/* release mtx_out */
 
 	//KIRK_MACHINE_DEBUG("%s", " finished computation g()\n");
 	output_requested.wait(lock, [this]{
 		return cancelled ||
-		       (unsigned)iRRAM::state.ACTUAL_STACK.prec_step < max_effort_requested ||
-		       iRRAM::state.ACTUAL_STACK.actual_prec > max_accuracy_requested;
+		       more_accuracy_requested ||
+		       max_effort_computed < max_effort_requested;
 	});
 }
 
@@ -230,26 +247,25 @@ void machine::exec(std::function<void(const REAL *,REAL *)> f)
 {
 	std::weak_ptr<machine> wp = shared_from_this();
 	std::thread([wp,f]{
-		try {
+//		try {
 			iRRAM::exec(compute, wp, f);
-		} catch (const char *) {
-		}
+//		} catch (const char *) {
+//		}
 	}).detach();
 }
 
-void machine::run(::kirk_abs_t a)
+void machine::run(real_out_sock &os, ::kirk_abs_t a)
 {
-	{
-		std::unique_lock<decltype(mtx_outputs)> lock(mtx_outputs);
-		if (a < max_accuracy_requested) {
-			max_accuracy_requested = a;
-			output_requested.notify_one();
-		}
-	}
+	bool more = a < os.req_accuracy;
+	if (more)
+		os.req_accuracy = a;
+	std::unique_lock<decltype(mtx_outputs)> lock(mtx_outputs);
+	if (more_accuracy_requested |= more)
+		output_requested.notify_one();
 	//KIRK_MACHINE_DEBUG("::run_abs(%u)\n", a);
 }
 
-void machine::run(::kirk_eff_t e)
+void machine::run(real_out_sock &os, ::kirk_eff_t e)
 {
 	{
 		std::unique_lock<decltype(mtx_outputs)> lock(mtx_outputs);
@@ -307,7 +323,7 @@ out_real::out_real(std::shared_ptr<machine> proc, size_t out_idx)
 	real_out_sock &os = proc->outputs[out_idx];
 	//KIRK_SOCK_DEBUG("::get w/ effort %u\n", e);
 	std::shared_lock<decltype(os.mtx)> lock(os.mtx);
-	proc->run(a);
+	proc->run(os, a);
 	os.cond.wait(lock, [&]{return a >= os.accuracy;});
 	kirk_apx_cpy(apx, &os.apx);
 	return KIRK_SUCCESS;
