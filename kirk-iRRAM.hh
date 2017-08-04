@@ -19,6 +19,8 @@ std::shared_ptr<machine> eval(::kirk_real_t *const *in, size_t n_in,
                               ::kirk_real_t **out     , size_t n_out,
                               func_type f);
 
+iRRAM::REAL make_REAL(const ::kirk_real_t &, bool apx_abs = true);
+
 }}
 
 #endif

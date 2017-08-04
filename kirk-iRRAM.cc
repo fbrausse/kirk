@@ -23,6 +23,32 @@ using namespace kirk::irram;
 
 typedef std::shared_ptr<kirk::irram::machine> machine_t;
 
+/* -------------------------------------------------------------------------- */
+
+static ::kirk_eff_t current_iRRAM_effort()
+{
+	return (unsigned)iRRAM::state.ACTUAL_STACK.prec_step;
+}
+
+iRRAM::REAL kirk::irram::make_REAL(const ::kirk_real_t &kr, bool apx_abs)
+{
+	::kirk_abs_t prec = iRRAM::state.ACTUAL_STACK.actual_prec;
+	::kirk_apx_t apx;
+	::kirk_apx_init2(&apx, -prec);
+	if (apx_abs)
+		::kirk_real_apx_abs(&kr, &apx, prec);
+	else
+		::kirk_real_apx_eff(&kr, &apx, current_iRRAM_effort());
+	DYADIC d;
+	swap(*d.value, *apx.center);
+	sizetype err = { apx.radius.mantissa, apx.radius.exponent };
+	sizetype_normalize(err);
+	::kirk_apx_fini(&apx);
+	REAL r = d;
+	r.seterror(err);
+	return r;
+}
+
 /* --------------------------------------------------------------------------
  * helper classes:
  *   real_out_sock: iRRAM will store the computed approximations there
@@ -117,11 +143,6 @@ static ::kirk_abs_t to_accuracy(sizetype err)
 		err.mantissa = (err.mantissa + 1) >> 1;
 	}
 	return err.exponent;
-}
-
-static ::kirk_eff_t current_iRRAM_effort()
-{
-	return (unsigned)iRRAM::state.ACTUAL_STACK.prec_step;
 }
 
 real_out_sock::real_out_sock()
@@ -265,7 +286,7 @@ void machine::run(real_out_sock &os, ::kirk_abs_t a)
 	//KIRK_MACHINE_DEBUG("::run_abs(%u)\n", a);
 }
 
-void machine::run(real_out_sock &os, ::kirk_eff_t e)
+void machine::run(real_out_sock &, ::kirk_eff_t e)
 {
 	{
 		std::unique_lock<decltype(mtx_outputs)> lock(mtx_outputs);
