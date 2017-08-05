@@ -30,22 +30,28 @@ static ::kirk_eff_t current_iRRAM_effort()
 	return (unsigned)iRRAM::state.ACTUAL_STACK.prec_step;
 }
 
-iRRAM::REAL kirk::irram::make_REAL(const ::kirk_real_t &kr, bool apx_abs)
+static iRRAM::REAL make_REAL(const ::kirk_real_t &kr, bool apx_abs, DYADIC &d, ::kirk_apx_t &apx, ::kirk_abs_t prec)
 {
-	::kirk_abs_t prec = iRRAM::state.ACTUAL_STACK.actual_prec;
-	::kirk_apx_t apx;
-	::kirk_apx_init2(&apx, -prec);
 	if (apx_abs)
 		::kirk_real_apx_abs(&kr, &apx, prec);
 	else
 		::kirk_real_apx_eff(&kr, &apx, current_iRRAM_effort());
-	DYADIC d;
 	swap(*d.value, *apx.center);
 	sizetype err = { apx.radius.mantissa, apx.radius.exponent };
 	sizetype_normalize(err);
-	::kirk_apx_fini(&apx);
 	REAL r = d;
 	r.seterror(err);
+	return r;
+}
+
+iRRAM::REAL kirk::irram::make_REAL(const ::kirk_real_t &kr, bool apx_abs)
+{
+	::kirk_abs_t prec = iRRAM::state.ACTUAL_STACK.actual_prec;
+	::kirk_apx_t apx;
+	DYADIC d;
+	::kirk_apx_init2(&apx, -prec);
+	REAL r = make_REAL(kr, apx_abs, d, apx, prec);
+	::kirk_apx_fini(&apx);
 	return r;
 }
 
@@ -201,14 +207,8 @@ void machine::computation_prepare(vector<REAL> &in)
 	DYADIC dd;
 
 	/* mtx_in: get lock on inputs busy */
-	for (const auto &i : inputs) {
-		::kirk_real_apx_abs(i.get(), &apx, acc);
-		sizetype err = { apx.radius.mantissa, apx.radius.exponent };
-		sizetype_normalize(err);
-		swap(*dd.value, *apx.center);
-		in.emplace_back(dd);
-		in.back().seterror(err);
-	}
+	for (const auto &i : inputs)
+		in.emplace_back(make_REAL(*i.get(), true, dd, apx, acc));
 	/* release mtx_in */
 
 	::kirk_apx_fini(&apx);

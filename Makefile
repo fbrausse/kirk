@@ -20,8 +20,8 @@ ifneq ($(IRRAM),)
   CFLAGS   += -pthread
   CXXFLAGS += -pthread
   LDFLAGS  += -pthread -L$(IRRAM)/lib -Wl,-rpath,$(IRRAM)/lib
-  LDLIBS   += -liRRAM
   CXX       = g++-5 # unfortunately, my iRRAM branch requires this
+test-iRRAM: LDLIBS += -liRRAM
 all: test-iRRAM
 endif
 
