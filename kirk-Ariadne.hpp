@@ -39,10 +39,8 @@ KirkReal::~KirkReal() {
 
 inline
 KirkReal::KirkReal(kirk_real_t* r)
-    : _real(r)
+    : _real(kirk_real_ref(r)) // Claim a reference to the Kirk real
 {
-    // Claim a reference to the Kirk real
-    kirk_real_ref(_real);
 }
 
 inline
@@ -54,9 +52,9 @@ FloatMPBounds KirkReal::_evaluate(MultiplePrecision pr) const {
     // Construct an Ariadne MPFR number.
     //   The RawPtr() tag is to prevent the number '0' being interpreted
     //   as a pointer elsewhere in the code
-    FloatMP c(apx->center,RawPtr());
+    FloatMP c(apx.center,RawPtr());
     // Convert the Kirk radius to an Ariadne double-precision number
-    FloatDP r(to_floatdp(&apx->radius));
+    FloatDP r(to_floatdp(&apx.radius));
     // Convert the centre-radius representation to lower and upper bounds
     return FloatMPBounds(sub(down,c,r),add(up,c,r));
 }
