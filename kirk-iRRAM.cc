@@ -6,6 +6,7 @@
 #include <iRRAM/lib.h>
 
 #include "kirk-iRRAM.hh"
+#include "log2.h"
 
 using std::unique_lock;
 using std::shared_lock;
@@ -30,6 +31,50 @@ static ::kirk_eff_t current_iRRAM_effort()
 	return (unsigned)iRRAM::state.ACTUAL_STACK.prec_step;
 }
 
+static void convert(sizetype &e, const ::kirk_bound_t &b)
+{
+	using im_t = typename iRRAM::sizetype::mantissa_t;
+	/* b = bm/2^C * 2^be
+	 * e = em     * 2^ee       ; ee' = D+ee
+	 */
+	if (!b.mantissa) {
+		sizetype_exact(e);
+		return;
+	}
+	int dbits = KIRK_BOUND_MANT_BITS - iRRAM::MANTISSA_BITS;
+	e.exponent = b.exponent - iRRAM::MANTISSA_BITS;
+	if (dbits > 0) {
+		e.mantissa = b.mantissa >> dbits;
+		if (!++e.mantissa) {
+			e.mantissa >>= 1;
+			e.mantissa = (im_t)1 << (iRRAM::MANTISSA_BITS-1);
+			e.exponent++;
+		}
+	} else {
+		e.mantissa = (im_t)b.mantissa << -dbits;
+	}
+	sizetype_normalize(e);
+}
+
+static void convert(::kirk_bound_t &b, const sizetype &e)
+{
+	using im_t = typename iRRAM::sizetype::mantissa_t;
+	im_t m = e.mantissa;
+	if (!m) {
+		kirk_bound_set_zero(&b);
+	} else {
+		unsigned ms = LOG2_CEIL(m);
+		/* bm/2^C * 2^be = em * 2^ee */
+		b.exponent = (kirk_bound_exp_t)e.exponent + (kirk_bound_exp_t)ms;
+		if (KIRK_BOUND_MANT_BITS > ms) {
+			b.mantissa = (kirk_bound_mant_t)e.mantissa << (KIRK_BOUND_MANT_BITS - ms);
+		} else {
+			b.mantissa = e.mantissa >> -(KIRK_BOUND_MANT_BITS - ms);
+			kirk_bound_nextafter(&b, &b);
+		}
+	}
+}
+
 static iRRAM::REAL make_REAL(const ::kirk_real_t &kr, bool apx_abs, DYADIC &d, ::kirk_apx_t &apx, ::kirk_abs_t prec)
 {
 	if (apx_abs)
@@ -37,8 +82,8 @@ static iRRAM::REAL make_REAL(const ::kirk_real_t &kr, bool apx_abs, DYADIC &d, :
 	else
 		::kirk_real_apx_eff(&kr, &apx, current_iRRAM_effort());
 	swap(*d.value, *apx.center);
-	sizetype err = { apx.radius.mantissa, apx.radius.exponent };
-	sizetype_normalize(err);
+	sizetype err;
+	convert(err, apx.radius);
 	REAL r = d;
 	r.seterror(err);
 	return r;
@@ -166,8 +211,7 @@ bool real_out_sock::offer(const DYADIC &d, const sizetype &err)
 	/* set apx */
 	mpfr_set_prec(apx.center, mpfr_get_prec(d.value));
 	mpfr_set(apx.center, d.value, MPFR_RNDN);
-	apx.radius.exponent = err.exponent;
-	apx.radius.mantissa = err.mantissa;
+	convert(apx.radius, err);
 
 	/* record accuracy */
 	accuracy = to_accuracy(err);
