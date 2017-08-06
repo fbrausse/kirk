@@ -11,7 +11,7 @@
 
 namespace kirk { namespace irram {
 
-class machine;
+struct machine;
 
 typedef std::function<void(const iRRAM::REAL *in,iRRAM::REAL *out)> func_type;
 

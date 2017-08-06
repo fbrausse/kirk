@@ -1,6 +1,6 @@
 
-#ifndef KIRK_TYPES_H
-#define KIRK_TYPES_H
+#ifndef KIRK_C_TYPES_H
+#define KIRK_C_TYPES_H
 
 #include <stdint.h>	/* [u]int32_t */
 #include <string.h>	/* memcpy() */
@@ -40,11 +40,6 @@ extern "C" {
  * >= 0: success */
 typedef int32_t                         kirk_ret_t;
 
-#define KIRK_ERR(no)		(-(int32_t)((uint32_t)(no) << 12))
-enum kirk_err_t {
-	KIRK_SUCCESS = 0,
-	KIRK_ERR_NO_CONV = KIRK_ERR(1), /* no convergence */
-};
 
 typedef struct kirk_bound_t             kirk_bound_t;
 typedef struct kirk_apx_t               kirk_apx_t;

@@ -169,7 +169,7 @@ bool real_out_sock::offer(const DYADIC &d, const sizetype &err)
 	apx.radius.exponent = err.exponent;
 	apx.radius.mantissa = err.mantissa;
 
-	/* record accuracy and effort */
+	/* record accuracy */
 	accuracy = to_accuracy(err);
 
 	/* notify every out_real waiting on us */
@@ -281,7 +281,7 @@ void machine::run(real_out_sock &os, ::kirk_abs_t a)
 	if (more)
 		os.req_accuracy = a;
 	std::unique_lock<decltype(mtx_outputs)> lock(mtx_outputs);
-	if (more_accuracy_requested |= more)
+	if ((more_accuracy_requested |= more))
 		output_requested.notify_one();
 	//KIRK_MACHINE_DEBUG("::run_abs(%u)\n", a);
 }
@@ -333,7 +333,7 @@ static const ::kirk_real_class_t real_class = {
  * out_real
  * -------------------------------------------------------------------------- */
 
-out_real::out_real(std::shared_ptr<machine> proc, size_t out_idx)
+out_real::out_real(machine_t proc, size_t out_idx)
 : ::kirk_real_t { &real_class, }
 , proc(move(proc))
 , out_idx(out_idx)
