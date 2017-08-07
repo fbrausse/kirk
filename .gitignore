@@ -1,3 +1,5 @@
 /*.o
 /test-iRRAM
+/test-hs
 /libkirk.a
+/Kirk.hi
