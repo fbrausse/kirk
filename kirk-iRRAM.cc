@@ -129,8 +129,9 @@ struct real_out_sock {
 };
 
 struct out_real : ::kirk_real_t {
-	machine_t proc;
-	size_t    out_idx;
+	const machine_t     proc;
+	const size_t        out_idx;
+	std::atomic<size_t> refcnt;
 
 	explicit out_real(machine_t proc, size_t out_idx);
 
@@ -356,12 +357,15 @@ void machine::run(real_out_sock &, ::kirk_eff_t e)
 
 static ::kirk_real_t * real_ref(::kirk_real_t *r)
 {
-	return new out_real(*static_cast<out_real *>(r));
+	static_cast<out_real *>(r)->refcnt++;
+	return r;
 }
 
-static void real_unref(::kirk_real_t *r)
+static void real_unref(::kirk_real_t *kr)
 {
-	delete static_cast<out_real *>(r);
+	out_real *r = static_cast<out_real *>(kr);
+	if (!--r->refcnt)
+		delete r;
 }
 
 static void real_apx_abs(const ::kirk_real_t *r, ::kirk_apx_t *apx, ::kirk_abs_t a)
@@ -389,6 +393,7 @@ out_real::out_real(machine_t proc, size_t out_idx)
 : ::kirk_real_t { &real_class, }
 , proc(move(proc))
 , out_idx(out_idx)
+, refcnt(1)
 {}
 
 void out_real::request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const
