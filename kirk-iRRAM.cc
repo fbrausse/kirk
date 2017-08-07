@@ -234,6 +234,9 @@ bool real_out_sock::offer(const DYADIC &d, const sizetype &err)
 machine::machine(::kirk_real_t *const *in, size_t n_in, size_t n_out)
 : outputs(n_out)
 , cancelled(false)
+, max_effort_computed(0)
+, max_effort_requested(0)
+, more_accuracy_requested(false)
 {
 	inputs.reserve(n_in);
 	for (size_t i=0; i<n_in; i++)
