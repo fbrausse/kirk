@@ -1,5 +1,5 @@
-/*.o
+*.o
+*.hi
 /test-iRRAM
 /test-hs
 /libkirk.a
-/Kirk.hi

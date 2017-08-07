@@ -5,15 +5,20 @@ INSTALL  = install
 LIB_OBJS = \
 	kirk-c.o
 
+LIB_HEADERS = \
+	kirk-c-types.h
+
 C_OBJS = \
-	kirk-c.o
+	kirk-c.o \
+	test-const.o
 
 CC_OBJS = \
 	kirk-iRRAM.o \
 	test-iRRAM.o
 
 HS_OBJS = \
-	Kirk.o
+	Data/Number/Kirk.o \
+	test-hs.o
 
 TESTS = \
 	test-iRRAM \
@@ -23,20 +28,21 @@ IRRAM = $(realpath $(HOME)/iRRAM/installed)
 HMPFR = hmpfr-0.4.3
 
 ifneq ($(IRRAM),)
-  LIB_OBJS += kirk-iRRAM.o
-  CPPFLAGS += -I$(IRRAM)/include -DKIRK_HAVE_IRRAM
-  CFLAGS   += -pthread
-  CXXFLAGS += -pthread
-  CXX       = g++-5 # unfortunately, my iRRAM branch requires this
+  LIB_OBJS    += kirk-iRRAM.o
+  LIB_HEADERS += kirk-iRRAM.hh
+  CPPFLAGS    += -I$(IRRAM)/include -DKIRK_HAVE_IRRAM
+  CFLAGS      += -pthread
+  CXXFLAGS    += -pthread
+  CXX          = g++-5 # unfortunately, my iRRAM branch requires this
 test-iRRAM: LDFLAGS += -pthread -L$(IRRAM)/lib -Wl,-rpath,$(IRRAM)/lib
 test-iRRAM: LDLIBS  += -liRRAM
-all: test-iRRAM
+tests: test-iRRAM
 endif
 
 ifneq ($(HMPFR),)
-  CPPFLAGS += -DKIRK_HAVE_HASKELL_HMPFR
+  CPPFLAGS += -DKIRK_HAVE_HMPFR
 test-hs: LDLIBS += -package $(HMPFR)
-all: test-hs
+tests: test-hs
 endif
 
 override CC  += -std=c99
@@ -46,38 +52,36 @@ CPPFLAGS     += -DKIRK_CHECK_BOUND
 CFLAGS        = -O2 -Wall -Wextra -pedantic
 CXXFLAGS      = -O2 -Wall -Wextra -pedantic
 HSFLAGS       = -O2 -Wall -Wextra
-LDLIBS += -lmpfr
+LDLIBS += -lmpfr -lm
+ARFLAGS = rcs
 
-all: libkirk.a
+all: libkirk.a tests
 
 test-iRRAM: test-iRRAM.o
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-Kirk.o: HSFLAGS += -main-is Data.Number.Kirk
-test-hs: Kirk.o test-hs.o
+test-hs: test-hs.o test-const.o Data/Number/Kirk.o
 	$(HSC) $(HSFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-$(TESTS): test-%: libkirk.a
-test-%: LDFLAGS += -L.
-test-%: LDLIBS  += -lkirk
+$(TESTS): libkirk.a
 
 libkirk.a: $(LIB_OBJS)
-	$(AR) rcs $@ $^
+	$(AR) $(ARFLAGS) $@ $^
 
 $(HS_OBJS): %.o: %.hs Makefile
-	$(HSC) $(HSFLAGS) -c -o $@ $<
+	$(HSC) $(CPPFLAGS) $(HSFLAGS) -c -o $@ $<
 $(CC_OBJS): %.o: %.cc $(wildcard *.h *.hh) Makefile
 $(C_OBJS): %.o: %.c $(wildcard *.h) Makefile
 
 install: libkirk.a
-	mkdir -p $(DESTDIR)/include/kirk && $(INSTALL) -m 0644 kirk-c-types.h $(DESTDIR)/include/kirk
-	mkdir -p $(DESTDIR)/lib && $(INSTALL) -m 0644 libkirk.a $(DESTDIR)/lib
+	mkdir -p $(DESTDIR)/include/kirk && $(INSTALL) -m 0644 -t $(DESTDIR)/include/kirk $(LIB_HEADERS)
+	mkdir -p $(DESTDIR)/lib && $(INSTALL) -m 0644 -t $(DESTDIR)/lib libkirk.a
 
 uninstall:
 	$(RM) $(DESTDIR)/include/kirk/kirk-c-types.h
 	$(RM) $(DESTDIR)/lib/libkirk.a
 
 clean:
-	$(RM) $(C_OBJS) $(CC_OBJS) $(HS_OBJS) libkirk.a test-hs test-iRRAM
+	$(RM) $(C_OBJS) $(CC_OBJS) $(HS_OBJS) libkirk.a $(TESTS)
 
-.PHONY: install uninstall clean
+.PHONY: tests install uninstall clean

@@ -67,5 +67,3 @@ extern kirk_real_t * get_test_real(void)
 	fprintf(stderr, "test-real #%zu created -> cnt: %zu\n", tr->id, tr->refcnt);
 	return &tr->parent;
 }
-
-//int main() { printf("%zu\n", sizeof(kirk_apx_t)); }

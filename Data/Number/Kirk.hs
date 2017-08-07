@@ -47,8 +47,8 @@ instance Storable KirkApxT where
     pokeByteOff ptr 0 r
     pokeByteOff ptr 16 c
 
-foreign import ccall "kirk_real_ref"     kirk_real_ref     :: Ptr KirkRealT -> IO (Ptr KirkRealT)
-foreign import ccall "kirk_real_unref"   kirk_real_unref   :: Ptr KirkRealT -> IO ()
+--foreign import ccall "kirk_real_ref"     kirk_real_ref     :: Ptr KirkRealT -> IO (Ptr KirkRealT)
+--foreign import ccall "kirk_real_unref"   kirk_real_unref   :: Ptr KirkRealT -> IO ()
 foreign import ccall "kirk_real_apx_abs" kirk_real_apx_abs :: Ptr KirkRealT -> Ptr KirkApxT -> Int32 -> IO ()
 foreign import ccall "kirk_real_apx_eff" kirk_real_apx_eff :: Ptr KirkRealT -> Ptr KirkApxT -> Word32 -> IO ()
 
@@ -56,14 +56,11 @@ foreign import ccall "kirk_apx_init"     kirk_apx_init     :: Ptr KirkApxT -> IO
 --foreign import ccall "kirk_apx_init2"    kirk_apx_init     :: Ptr KirkApxT -> IO ()
 foreign import ccall "kirk_apx_fini"     kirk_apx_fini     :: Ptr KirkApxT -> IO ()
 
-foreign import ccall "&kirk_apx_fini"    p_kirk_apx_fini   :: FunPtr (Ptr KirkApxT -> IO ())
+--foreign import ccall "&kirk_apx_fini"    p_kirk_apx_fini   :: FunPtr (Ptr KirkApxT -> IO ())
 foreign import ccall "&kirk_real_unref"  p_kirk_real_unref :: FunPtr (Ptr KirkRealT -> IO ())
 
 get_real_ptr :: IO (Ptr KirkRealT) -> IO (ForeignPtr KirkRealT)
-get_real_ptr get_real =
-  do
-  r <- get_real
-  newForeignPtr p_kirk_real_unref r
+get_real_ptr get_real = get_real >>= newForeignPtr p_kirk_real_unref
 
 do_real_apx_abs :: Ptr KirkRealT -> Int32 -> IO KirkApxT
 do_real_apx_abs real accuracy =
@@ -73,23 +70,6 @@ do_real_apx_abs real accuracy =
     q <- peek p
     kirk_apx_fini p
     return q
-
-foreign import ccall "get_test_real"  get_test_real  :: IO (Ptr KirkRealT)
-
-
-main :: IO ()
-main =
-  do
-  fr <- get_real_ptr get_test_real
-  apx <- withForeignPtr fr $ \p -> do_real_apx_abs p 20
---  p_apx <- poke asdf
---  kirk_apx_init p_apx
-
-  --kirk_real_unref r
-  --kirk_real_unref r
-  let r = radius apx
-  putStrLn $ "exponent = " ++ (show $ k_exponent r)
-  putStrLn $ "center = " ++ (show $ center apx)
 
 {-data KirkRealClassT = KirkRealClassT
   { ref   :: FunPtr (Ptr KirkRealT -> IO (Ptr KirkRealT))
