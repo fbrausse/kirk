@@ -7,6 +7,7 @@
 #include <float.h>	/* DBL_MANT_DIG */
 #include <math.h>	/* (ld|fr)exp() */
 #include <mpfr.h>
+#include <errno.h>	/* EINVAL */
 
 #define KIRK_VER_MAJOR	0
 #define KIRK_VER_MINOR	0
@@ -41,10 +42,17 @@ extern "C" {
 #define KIRK_CONCAT3(a,b,c)			a ## b ## c
 #define KIRK_UINT_TYPE(b)			KIRK_CONCAT3(uint,b,_t)
 #define KIRK_INT_TYPE(b)			KIRK_CONCAT3(int,b,_t)
+#define KIRK_ERR(no)				(-(int)((unsigned)(no) << 12))
 
-/* <  0: error, negative errno
+typedef int kirk_ret_t;
+
+/* <  0: error, negative errno(3) or a KIRK_ERR_* constant
  * >= 0: success */
-typedef int32_t                         kirk_ret_t;
+enum {
+	KIRK_SUCCESS      = 0,
+	KIRK_ERR_NO_CONV  = KIRK_ERR(1), /* no convergence */
+	KIRK_ERR_EXP_OVFL = KIRK_ERR(2), /* kirk_bound_exp_t overflow */
+};
 
 #define KIRK_BOUND_MANT_BITS		GMP_NUMB_BITS
 #define KIRK_BOUND_EXP_MIN		(kirk_bound_exp_t)KIRK_BOUND_MANT_1HALF
@@ -92,25 +100,43 @@ KIRK_API inline kirk_ret_t kirk_context_detach  (kirk_context_t *,
 /* multi-valued: b <  c -> returns 1
  *               b == c -> returns 0 or 1
  *               b >  c -> returns 0 */
-KIRK_API        int              kirk_bound_less     (const kirk_bound_t *,
-                                                      const kirk_bound_t *);
-KIRK_API        int              kirk_bound_less_2exp(const kirk_bound_t *,
-                                                      kirk_bound_exp_t);
-KIRK_API inline void             kirk_bound_set_zero(kirk_bound_t *b);
+KIRK_API        int              kirk_bound_less     (const kirk_bound_t *b,
+                                                      const kirk_bound_t *c);
+
+/* multi-valued check whether b < 2^e; c.f. kirk_bound_less() */
+KIRK_API        int              kirk_bound_less_2exp(const kirk_bound_t *b,
+                                                      kirk_bound_exp_t e);
+
+/* sets r to a state representing zero:
+ * mantissa is zero and exponent is minimal */
+KIRK_API inline void             kirk_bound_set_zero(kirk_bound_t *r);
+
+/* set r from a double */
 KIRK_API inline void             kirk_bound_set_d(kirk_bound_t *r, double d);
+
+/* interpret b as a double
+ * warning: kirk_bound_t easily stores bounds not representable in type double,
+ * this leads to over- and underflow; fpclassify() the result! */
 KIRK_API inline double           kirk_bound_get_d(const kirk_bound_t *b);
-KIRK_API inline void             kirk_bound_nextafter(kirk_bound_t *r,
+
+/* store in r the next higher value than b representable in kirk_bound_t.
+ * \requires (b.exponent < KIRK_BOUND_EXP_MAX || ~b.mantissa) */
+KIRK_API inline kirk_ret_t       kirk_bound_nextafter(kirk_bound_t *r,
                                                       const kirk_bound_t *b);
-KIRK_API        void             kirk_bound_add(kirk_bound_t *r,
+
+/* store in r the result of adding b and c if it can be represented exactly in
+ * a kirk_bound_t, otherwise round towards +infinity and store that.
+ * \requires the sum to be representable in kirk_bound_t */
+KIRK_API        kirk_ret_t       kirk_bound_add(kirk_bound_t *r,
                                                 const kirk_bound_t *b,
                                                 const kirk_bound_t *c);
-KIRK_API inline void             kirk_bound_add_2exp(kirk_bound_t *r,
+KIRK_API inline kirk_ret_t       kirk_bound_add_2exp(kirk_bound_t *r,
                                                      const kirk_bound_t *b,
                                                      kirk_bound_exp_t e);
-KIRK_API        void             kirk_bound_mul(kirk_bound_t *r,
+KIRK_API        kirk_ret_t       kirk_bound_mul(kirk_bound_t *r,
                                                 const kirk_bound_t *b,
                                                 const kirk_bound_t *c);
-KIRK_API inline void             kirk_bound_shift(kirk_bound_t *r,
+KIRK_API inline kirk_ret_t       kirk_bound_shift(kirk_bound_t *r,
                                                   const kirk_bound_t *b,
                                                   kirk_bound_exp_t e);
 KIRK_API inline void             kirk_bound_max(kirk_bound_t *r,
@@ -118,7 +144,7 @@ KIRK_API inline void             kirk_bound_max(kirk_bound_t *r,
                                                 const kirk_bound_t *c);
 /* \requires mpfr_number_p(x): x must be neither NaN nor an infinity
  * \ensures  b <= |x| < (b->mantissa+1)/2^C * 2^(b->exponent) */
-KIRK_API inline void             kirk_bound_mpfr_size(kirk_bound_t *b,
+KIRK_API inline kirk_ret_t       kirk_bound_mpfr_size(kirk_bound_t *b,
                                                       mpfr_srcptr x);
 
 KIRK_API inline void kirk_apx_init (kirk_apx_t *);
@@ -140,8 +166,10 @@ KIRK_API inline void          kirk_real_apx_eff(const kirk_real_t *,
 
 /* helper functions to implement all of the required approx functions */
 
-/* Use effort-based unbounded search to approximate r. */
-KIRK_API        void          kirk_real_apx_abs_eff(const kirk_real_t *r,
+/* Use effort-based unbounded search to approximate r. The signature of this
+ * "helper" function does on purpose not exactly fit that of
+ * kirk_real_class_t::*apx_eff to emphasize the need for eventual convergence.*/
+KIRK_API        kirk_ret_t    kirk_real_apx_abs_eff(const kirk_real_t *r,
                                                     kirk_apx_t *,
                                                     kirk_abs_t);
 
@@ -243,14 +271,19 @@ inline void kirk_bound_set_zero(kirk_bound_t *r)
 	r->mantissa = 0;
 }
 
-inline void kirk_bound_nextafter(kirk_bound_t *r, const kirk_bound_t *b)
+inline kirk_ret_t kirk_bound_nextafter(kirk_bound_t *r, const kirk_bound_t *b)
 {
 	r->exponent = b->exponent;
 	r->mantissa = b->mantissa + 1;
 	if (!r->mantissa) {
 		r->mantissa = KIRK_BOUND_MANT_1HALF;
+#ifdef KIRK_CHECK_BOUND
+		if (r->exponent == KIRK_BOUND_EXP_MAX)
+			return KIRK_ERR_EXP_OVFL;
+#endif
 		r->exponent++;
 	}
+	return KIRK_SUCCESS;
 }
 
 inline void kirk_bound_set_d(kirk_bound_t *r, double d)
@@ -271,24 +304,35 @@ inline double kirk_bound_get_d(const kirk_bound_t *b)
 	return ldexp(d, b->exponent);
 }
 
-inline void kirk_bound_add_2exp(kirk_bound_t *r,
-                                const kirk_bound_t *b,
-                                kirk_bound_exp_t e)
+inline kirk_ret_t kirk_bound_add_2exp(kirk_bound_t *r,
+                                      const kirk_bound_t *b,
+                                      kirk_bound_exp_t e)
 {
 	kirk_bound_t c = { e, 1 };
-	kirk_bound_add(r, b, &c);
+	return kirk_bound_add(r, b, &c);
 }
 
-inline void kirk_bound_shift(kirk_bound_t *r,
-                             const kirk_bound_t *b,
-                             kirk_bound_exp_t e)
+inline kirk_ret_t kirk_bound_shift(kirk_bound_t *r,
+                                   const kirk_bound_t *b,
+                                   kirk_bound_exp_t e)
 {
 	if (b->mantissa) {
-		r->exponent = b->exponent + e;
-		r->mantissa = b->mantissa;
+		if (e < 0 && b->exponent < KIRK_BOUND_EXP_MIN - e) {
+			r->exponent = KIRK_BOUND_EXP_MIN;
+			r->mantissa = KIRK_BOUND_MANT_1HALF;
+		}
+#ifdef KIRK_CHECK_BOUND
+		else if (e > 0 && b->exponent > KIRK_BOUND_EXP_MAX - e)
+			return KIRK_ERR_EXP_OVFL;
+#endif
+		else {
+			r->exponent = b->exponent + e;
+			r->mantissa = b->mantissa;
+		}
 	} else {
 		kirk_bound_set_zero(r);
 	}
+	return KIRK_SUCCESS;
 }
 
 inline void kirk_bound_max(kirk_bound_t *r,
@@ -306,14 +350,19 @@ inline void kirk_bound_max(kirk_bound_t *r,
 	}
 }
 
-inline void kirk_bound_mpfr_size(kirk_bound_t *b, mpfr_srcptr x)
+inline kirk_ret_t kirk_bound_mpfr_size(kirk_bound_t *b, mpfr_srcptr x)
 {
 	if (mpfr_zero_p(x)) {
 		kirk_bound_set_zero(b);
 	} else {
+#ifdef KIRK_CHECK_BOUND
+		if (!mpfr_regular_p(x))
+			return -EINVAL;
+#endif
 		b->mantissa = x->_mpfr_d[KIRK_MPFR_MSL(x)];
 		b->exponent = mpfr_get_exp(x);
 	}
+	return KIRK_SUCCESS;
 }
 
 /* --------------------------------------------------------------------------

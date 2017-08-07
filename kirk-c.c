@@ -1,8 +1,6 @@
 
 #define KIRK_INTERNAL
 
-#include <stdlib.h>
-
 #include "kirk-c-types.h"
 
 static kirk_bound_mant_t rshift0(kirk_bound_mant_t v, unsigned n)
@@ -33,9 +31,9 @@ int kirk_bound_less_2exp(const kirk_bound_t *a, kirk_bound_exp_t be)
 	return kirk_bound_less(a, &(kirk_bound_t){ be, 1 });
 }
 
-void kirk_bound_add(kirk_bound_t *r,
-                    const kirk_bound_t *b,
-                    const kirk_bound_t *c)
+kirk_ret_t kirk_bound_add(kirk_bound_t *r,
+                          const kirk_bound_t *b,
+                          const kirk_bound_t *c)
 {
 	const kirk_bound_t *x = b, *y = c;
 	if (x->exponent < y->exponent) {
@@ -50,18 +48,36 @@ void kirk_bound_add(kirk_bound_t *r,
 	if (r->mantissa < ys) {
 		r->mantissa >>= 1;
 		r->mantissa  |= KIRK_BOUND_MANT_1HALF;
+#ifdef KIRK_CHECK_BOUND
+		if (r->exponent == KIRK_BOUND_EXP_MAX)
+			return KIRK_ERR_EXP_OVFL;
+#endif
 		r->exponent++;
 	}
+	return KIRK_SUCCESS;
 }
 
-void kirk_bound_mul(kirk_bound_t *r,
-                    const kirk_bound_t *b,
-                    const kirk_bound_t *c)
+kirk_ret_t kirk_bound_mul(kirk_bound_t *r,
+                          const kirk_bound_t *b,
+                          const kirk_bound_t *c)
 {
-	if (b->mantissa && c->mantissa) {
-		const unsigned h = KIRK_BOUND_MANT_BITS / 2;
-		kirk_bound_mant_t bh, ch;
-		r->exponent = b->exponent + c->exponent;
+	if (!b->mantissa || !c->mantissa) {
+		kirk_bound_set_zero(r);
+		return KIRK_SUCCESS;
+	}
+	const unsigned h = KIRK_BOUND_MANT_BITS / 2;
+	kirk_bound_mant_t bh, ch;
+	kirk_bound_exp_t be = b->exponent, ce = c->exponent;
+	if (be < 0 && ce < KIRK_BOUND_EXP_MIN - be) {
+		r->exponent = KIRK_BOUND_EXP_MIN;
+		r->mantissa = KIRK_BOUND_MANT_1HALF;
+	}
+#ifdef KIRK_CHECK_BOUND
+	else if (be > 0 && ce > KIRK_BOUND_EXP_MAX - be)
+		return KIRK_ERR_EXP_OVFL;
+#endif
+	else {
+		r->exponent = be + ce;
 		if ((bh = rshift_ceil(b->mantissa, h)) >> h) {
 			/* bh == 2^h */
 			r->mantissa = c->mantissa;
@@ -72,13 +88,16 @@ void kirk_bound_mul(kirk_bound_t *r,
 			r->mantissa = bh * ch;
 			/* only the highest bit can be zero */
 			if (!(r->mantissa & KIRK_BOUND_MANT_1HALF)) {
-				r->mantissa <<= 1;
-				r->exponent--;
+				if (r->exponent == KIRK_BOUND_EXP_MIN)
+					r->mantissa = KIRK_BOUND_MANT_1HALF;
+				else {
+					r->mantissa <<= 1;
+					r->exponent--;
+				}
 			}
 		}
-	} else {
-		kirk_bound_set_zero(r);
 	}
+	return KIRK_SUCCESS;
 }
 
 #include <stdio.h>
@@ -146,15 +165,17 @@ void kirk_apx_set(kirk_apx_t *tgt, mpfr_srcptr x, const kirk_bound_t *b)
 	mpfr_set(y, x, MPFR_RNDN);
 }
 
-void kirk_real_apx_abs_eff(const kirk_real_t *r, kirk_apx_t *apx, kirk_abs_t a)
+kirk_ret_t kirk_real_apx_abs_eff(const kirk_real_t *r,
+                                 kirk_apx_t *apx,
+                                 kirk_abs_t a)
 {
 	for (kirk_eff_t e = a < 0 ? -a : 1; e; e++) {
 		kirk_real_apx_eff(r, apx, e);
 		if (kirk_bound_less_2exp(&apx->radius, a))
-			return;
+			return KIRK_SUCCESS;
 	}
-	/* must not happen, implementation has to ensure convergence */
-	abort();
+	/* should not happen, implementation has to ensure convergence */
+	return KIRK_ERR_NO_CONV;
 }
 
 uint32_t kirk_version(void)
