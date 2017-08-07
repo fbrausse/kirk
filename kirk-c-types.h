@@ -148,7 +148,7 @@ KIRK_API inline kirk_ret_t       kirk_bound_mpfr_size(kirk_bound_t *b,
                                                       mpfr_srcptr x);
 
 KIRK_API inline void kirk_apx_init (kirk_apx_t *);
-KIRK_API inline void kirk_apx_init2(kirk_apx_t *, mpfr_prec_t);
+KIRK_API inline void kirk_apx_init2(kirk_apx_t *, mpfr_prec_t /* TODO: std-C */);
 KIRK_API inline void kirk_apx_cpy  (kirk_apx_t *, const kirk_apx_t *);
 KIRK_API        void kirk_apx_set  (kirk_apx_t *, mpfr_srcptr, const kirk_bound_t *);
 KIRK_API inline void kirk_apx_fini (kirk_apx_t *);
@@ -383,9 +383,13 @@ inline void kirk_apx_init2(kirk_apx_t *apx, mpfr_prec_t prec)
 
 inline void kirk_apx_cpy(kirk_apx_t *tgt, const kirk_apx_t *src)
 {
+#if 1
+	kirk_apx_set(tgt, src->center, &src->radius);
+#else
 	mpfr_set_prec(tgt->center, mpfr_get_prec(src->center));
 	mpfr_set(tgt->center, src->center, MPFR_RNDN);
 	memcpy(&tgt->radius, &src->radius, sizeof(tgt->radius));
+#endif
 }
 
 inline void kirk_apx_fini(kirk_apx_t *apx)
