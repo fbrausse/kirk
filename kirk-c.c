@@ -182,3 +182,15 @@ uint32_t kirk_version(void)
 {
 	return KIRK_VERSION;
 }
+
+uint32_t kirk_info(void)
+{
+	return 0
+#ifdef KIRK_HAVE_IRRAM
+	| KIRK_INFO_HAVE_IRRAM
+#endif
+#ifdef KIRK_HAVE_HMPFR
+	| KIRK_INFO_HAVE_HMPFR
+#endif
+	;
+}

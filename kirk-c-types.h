@@ -54,6 +54,11 @@ enum {
 	KIRK_ERR_EXP_OVFL = KIRK_ERR(2), /* kirk_bound_exp_t overflow */
 };
 
+enum {
+	KIRK_INFO_HAVE_IRRAM = 1U << 0,
+	KIRK_INFO_HAVE_HMPFR = 1U << 1,
+};
+
 #define KIRK_BOUND_MANT_BITS		GMP_NUMB_BITS
 #define KIRK_BOUND_EXP_MIN		(kirk_bound_exp_t)KIRK_BOUND_MANT_1HALF
 #define KIRK_BOUND_EXP_MAX		(kirk_bound_exp_t)~KIRK_BOUND_MANT_1HALF
@@ -77,7 +82,8 @@ typedef uint32_t kirk_eff_t; /*      0 -> +infty: no rate specified */
  * kirk API
  * -------------------------------------------------------------------------- */
 
-KIRK_API        uint32_t  kirk_version(void);
+KIRK_API        uint32_t    kirk_info(void);
+KIRK_API        uint32_t    kirk_version(void);
 
 #ifdef _KIRK_HAVE_CONTEXT
 /* Implementations must provide an own "constructor" method with arbitrary
