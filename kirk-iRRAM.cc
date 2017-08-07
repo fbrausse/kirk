@@ -62,20 +62,25 @@ static void convert(::kirk_bound_t &b, const sizetype &e)
 	im_t m = e.mantissa;
 	if (!m) {
 		kirk_bound_set_zero(&b);
+		return;
+	}
+	unsigned ms = LOG2_CEIL(m);
+	/* bm/2^C * 2^be = em * 2^ee */
+	b.exponent = (kirk_bound_exp_t)e.exponent + (kirk_bound_exp_t)ms;
+	if (KIRK_BOUND_MANT_BITS > ms) {
+		b.mantissa = (kirk_bound_mant_t)e.mantissa
+		             << (KIRK_BOUND_MANT_BITS - ms);
 	} else {
-		unsigned ms = LOG2_CEIL(m);
-		/* bm/2^C * 2^be = em * 2^ee */
-		b.exponent = (kirk_bound_exp_t)e.exponent + (kirk_bound_exp_t)ms;
-		if (KIRK_BOUND_MANT_BITS > ms) {
-			b.mantissa = (kirk_bound_mant_t)e.mantissa << (KIRK_BOUND_MANT_BITS - ms);
-		} else {
-			b.mantissa = e.mantissa >> -(KIRK_BOUND_MANT_BITS - ms);
-			kirk_bound_nextafter(&b, &b);
-		}
+		b.mantissa = e.mantissa >> -(KIRK_BOUND_MANT_BITS - ms);
+		kirk_bound_nextafter(&b, &b);
 	}
 }
 
-static iRRAM::REAL make_REAL(const ::kirk_real_t &kr, bool apx_abs, DYADIC &d, ::kirk_apx_t &apx, ::kirk_abs_t prec)
+static iRRAM::REAL make_REAL(const ::kirk_real_t &kr,
+                             bool apx_abs,
+                             DYADIC &d,
+                             ::kirk_apx_t &apx,
+                             ::kirk_abs_t prec)
 {
 	if (apx_abs)
 		::kirk_real_apx_abs(&kr, &apx, prec);
