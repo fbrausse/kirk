@@ -128,8 +128,9 @@ void kirk_apx_set(kirk_apx_t *tgt, mpfr_srcptr x, const kirk_bound_t *b)
 		            x, b->mantissa, b->exponent, kirk_bound_get_d(b),
 		            xe, xp, xk, ldexp(1, mpfr_get_exp(x)-mpfr_get_prec(x)));
 */
-		if (be >= xe) {
-			/* error larger than 2*|x| -> 0 in [x +/- b] */
+
+		if (be > xe) {
+			/* error larger than |x| -> 0 in [x +/- b] */
 			p = 0;
 		} else if (be > xe - xp) {
 			/* error in significant digits of x
@@ -152,13 +153,13 @@ void kirk_apx_set(kirk_apx_t *tgt, mpfr_srcptr x, const kirk_bound_t *b)
 		if (p < xp)
 			kirk_bound_add_2exp(c, b, xe - p);
 		else
-			memcpy(c, b, sizeof(*c));
+			*c = *b;
 	} else {
 		/* x is +/-infinity, NaN or zero */
 		p = mpfr_min_prec(x);
 		if (p < MPFR_PREC_MIN)
 			p = MPFR_PREC_MIN;
-		memcpy(c, b, sizeof(*c));
+		*c = *b;
 	}
 
 	mpfr_set_prec(y, p);

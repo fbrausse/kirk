@@ -3,7 +3,7 @@
 #define KIRK_C_TYPES_H
 
 #include <stdint.h>	/* [u]int32_t */
-#include <string.h>	/* memcpy() */
+#include <string.h>	/* memset() */
 #include <float.h>	/* DBL_MANT_DIG */
 #include <math.h>	/* (ld|fr)exp() */
 #include <mpfr.h>
@@ -33,6 +33,13 @@
 # ifdef KIRK_INTERNAL
 #  error support for extern-inline is required to compile kirk as C++; \
          it has not been implemented
+# endif
+# if defined(__GNUC__) || defined(__clang__)
+#  define restrict __restrict__
+# elif defined(_MSC_VER)
+#  define restrict __restrict
+# else
+#  define restrict
 # endif
 extern "C" {
 #elif !defined(__STDC_VERSION__) || (__STDC_VERSION__ -0) < 199901L
@@ -314,7 +321,11 @@ inline kirk_ret_t kirk_bound_add_2exp(kirk_bound_t *r,
                                       const kirk_bound_t *b,
                                       kirk_bound_exp_t e)
 {
-	kirk_bound_t c = { e, 1 };
+#if KIRK_CHECK_BOUND
+	if (e == KIRK_BOUND_EXP_MAX)
+		return KIRK_ERR_EXP_OVFL;
+#endif
+	kirk_bound_t c = { e+1, KIRK_BOUND_MANT_1HALF };
 	return kirk_bound_add(r, b, &c);
 }
 
@@ -394,7 +405,7 @@ inline void kirk_apx_cpy(kirk_apx_t *tgt, const kirk_apx_t *src)
 #else
 	mpfr_set_prec(tgt->center, mpfr_get_prec(src->center));
 	mpfr_set(tgt->center, src->center, MPFR_RNDN);
-	memcpy(&tgt->radius, &src->radius, sizeof(tgt->radius));
+	tgt->radius = src->radius;
 #endif
 }
 
