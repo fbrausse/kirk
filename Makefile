@@ -27,6 +27,8 @@ HS_OBJS = \
 	Data/Number/Kirk.o \
 	test-hs.o
 
+HI_OBJS = $(HS_OBJS:.o=.hi)
+
 TESTS = \
 	test-irram \
 	test-hs
@@ -78,16 +80,15 @@ test-irram: test-irram.o
 
 test-hs: test-hs.o Data/Number/Kirk.o
 	$(HSC) $(HSFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-test-hs.o: Data/Number/Kirk.hi
+test-hs.o: Data/Number/Kirk.o
 
 $(TESTS): libkirk.a
 
 libkirk.a: $(LIB_OBJS)
 	$(AR) $(ARFLAGS) $@ $^
 
-$(HS_OBJS): %.o: %.hs $(HS_OBJS:.o=.hi) Makefile
+$(HS_OBJS): %.o: %.hs Makefile
 	$(HSC) $(CPPFLAGS) $(HSFLAGS) -c -o $@ $<
-$(HS_OBJS:.o=.hi): %.hi: %.hs
 $(CC_OBJS): %.o: %.cc $(wildcard *.h *.hh) Makefile
 $(C_OBJS): %.o: %.c $(wildcard *.h) Makefile
 
@@ -100,6 +101,6 @@ uninstall:
 	$(RM) $(DESTDIR)/lib/libkirk.a
 
 clean:
-	$(RM) $(C_OBJS) $(CC_OBJS) $(HS_OBJS) libkirk.a $(TESTS)
+	$(RM) $(C_OBJS) $(CC_OBJS) $(HS_OBJS) $(HI_OBJS) libkirk.a $(TESTS)
 
 .PHONY: tests install uninstall clean
