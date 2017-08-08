@@ -18,8 +18,6 @@
 # define KIRK_API	KIRK_IMPORT
 #endif
 
-#undef _KIRK_HAVE_CONTEXT /* no kirk_context_t support, yet */
-
 #ifdef __cplusplus
 # ifdef KIRK_INTERNAL
 #  error support for extern-inline is required to compile kirk as C++; \
@@ -59,11 +57,6 @@ typedef struct kirk_apx_t               kirk_apx_t;
 typedef struct kirk_real_t              kirk_real_t;
 typedef struct kirk_real_class_t        kirk_real_class_t;
 
-#ifdef _KIRK_HAVE_CONTEXT
-typedef struct kirk_context_t           kirk_context_t;
-typedef struct kirk_context_class_t     kirk_context_class_t;
-#endif
-
 typedef  int32_t kirk_abs_t; /* +infty -> -infty: absolute accuracy, fast Cauchy */
 typedef uint32_t kirk_eff_t; /*      0 -> +infty: no rate specified */
 
@@ -73,24 +66,6 @@ typedef uint32_t kirk_eff_t; /*      0 -> +infty: no rate specified */
 
 KIRK_API        uint32_t    kirk_info(void);
 KIRK_API        uint32_t    kirk_version(void);
-
-#ifdef _KIRK_HAVE_CONTEXT
-/* Implementations must provide an own "constructor" method with arbitrary
- * arguments, usually <NAME>_kirk_context_create(), where <NAME> is the string
- * returned by kirk_context_get_name(ctx), which returns a pointer to an
- * kirk_context_t structure */
-
-KIRK_API inline kirk_context_t * kirk_context_ref  (kirk_context_t *);
-KIRK_API inline void             kirk_context_unref(kirk_context_t *);
-KIRK_API inline const char *     kirk_context_get_name(const kirk_context_t *);
-/*
-KIRK_API inline kirk_ret_t kirk_context_spawn   (kirk_context_t *,
-                                                 kirk_computation_t *);
-KIRK_API inline kirk_ret_t kirk_context_detach  (kirk_context_t *,
-                                                 kirk_computation_t *);
-
-*/
-#endif
 
 /* multi-valued: b <  c -> returns 1
  *               b == c -> returns 0 or 1
@@ -175,32 +150,6 @@ KIRK_API inline void          kirk_real_apx_eff_abs(const kirk_real_t *,
 /* ==========================================================================
  * KIRK data types
  * ========================================================================== */
-
-/* --------------------------------------------------------------------------
- * instantiated library / KIRK context
- * -------------------------------------------------------------------------- */
-
-#ifdef _KIRK_HAVE_CONTEXT /* unused at the moment, may be required later */
-struct kirk_context_class_t {
-	/* mandatory interface */
-	kirk_context_t * (*ref        )(kirk_context_t *);
-	void             (*unref      )(kirk_context_t *);
-	const char *     (*get_name   )(const kirk_context_t *);
-
-	/* optional interface */
-	kirk_ret_t       (*get_feature)(const kirk_context_t *, const char *key);
-	kirk_ret_t       (*set_feature)(kirk_context_t *,
-	                                const char *key, const char *value);
-	/* further details are implementation-defined:
-	 * do not use the size of this struct */
-};
-
-struct kirk_context_t {
-	const kirk_context_class_t *clazz;
-	/* further details are implementation-defined:
-	 * do not use the size of this struct */
-};
-#endif
 
 /* --------------------------------------------------------------------------
  * Reals
@@ -395,27 +344,6 @@ inline void kirk_apx_fini(kirk_apx_t *apx)
 {
 	mpfr_clear(apx->center);
 }
-
-/* --------------------------------------------------------------------------
- * kirk context
- * -------------------------------------------------------------------------- */
-
-#ifdef _KIRK_HAVE_CONTEXT
-inline kirk_context_t * kirk_context_ref(kirk_context_t *ctx)
-{
-	return ctx->clazz->ref(ctx);
-}
-
-inline void kirk_context_unref(kirk_context_t *ctx)
-{
-	ctx->clazz->unref(ctx);
-}
-
-inline const char * kirk_context_get_name(const kirk_context_t *ctx)
-{
-	return ctx->clazz->get_name(ctx);
-}
-#endif
 
 /* --------------------------------------------------------------------------
  * kirk real
