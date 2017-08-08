@@ -4,6 +4,9 @@
 #include <thread>
 
 #include <iRRAM/lib.h>
+#include <iRRAM/version.h>	/* iRRAM_TLS_STD */
+
+static_assert(iRRAM_TLS_STD-0, "iRRAM configured with --with-tls=thread_local");
 
 #include "kirk-iRRAM.hh"
 #include "log2.h"
