@@ -24,8 +24,14 @@ TESTS = \
 	test-iRRAM \
 	test-hs
 
+HSC = ghc
+
+ifeq ($(HSC),ghc)
+  HS_PKGS = ghc-pkg --simple-output list
+endif
+
 IRRAM = $(realpath $(HOME)/iRRAM/installed)
-HMPFR = hmpfr-0.4.3
+HMPFR = $(shell $(HS_PKGS) hmpfr-0.4.3)
 
 ifneq ($(IRRAM),)
   LIB_OBJS    += kirk-iRRAM.o
@@ -47,11 +53,10 @@ endif
 
 override CC  += -std=c99
 override CXX += -std=c++14
-HSC           = ghc
 CPPFLAGS     += -DKIRK_CHECK_BOUND
 CFLAGS        = -O2 -Wall -Wextra -pedantic
 CXXFLAGS      = -O2 -Wall -Wextra -pedantic
-HSFLAGS       = -O2 -Wall -Wextra
+HSFLAGS       = -O2 -Wall -Wextra -cpp
 LDLIBS += -lmpfr -lm
 ARFLAGS = rcs
 
@@ -62,14 +67,16 @@ test-iRRAM: test-iRRAM.o
 
 test-hs: test-hs.o test-const.o Data/Number/Kirk.o
 	$(HSC) $(HSFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+test-hs.o: Data/Number/Kirk.hi
 
 $(TESTS): libkirk.a
 
 libkirk.a: $(LIB_OBJS)
 	$(AR) $(ARFLAGS) $@ $^
 
-$(HS_OBJS): %.o: %.hs Makefile
+$(HS_OBJS): %.o: %.hs $(HS_OBJS:.o=.hi) Makefile
 	$(HSC) $(CPPFLAGS) $(HSFLAGS) -c -o $@ $<
+$(HS_OBJS:.o=.hi): %.hi: %.hs
 $(CC_OBJS): %.o: %.cc $(wildcard *.h *.hh) Makefile
 $(C_OBJS): %.o: %.c $(wildcard *.h) Makefile
 
