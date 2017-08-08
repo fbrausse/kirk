@@ -52,7 +52,6 @@ ifneq ($(IRRAM),)
   CPPFLAGS    += -I$(IRRAM)/include -DKIRK_HAVE_IRRAM
   CFLAGS      += -pthread
   CXXFLAGS    += -pthread
-  CXX          = g++-5 # unfortunately, my iRRAM branch requires this
 test-irram: LDFLAGS += -pthread -L$(IRRAM)/lib -Wl,-rpath,$(IRRAM)/lib
 test-irram: LDLIBS  += -liRRAM
 tests: test-irram
