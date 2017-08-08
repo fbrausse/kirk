@@ -1,29 +1,15 @@
 
-#include "kirk-iRRAM.hh"
+#include <iRRAM/common.h>
+
+#include "kirk-irram-api.h"
 #include "kirk-dyadic-real.h"
-
-using std::shared_ptr;
-
-using iRRAM::REAL;
-
-using kirk::irram::eval;
-
-static void my_exp(const REAL *in, REAL *out) { out[0] = exp(in[0]); }
-
-/* could be part of kirk's "iRRAM" C-API */
-extern "C" kirk_real_t * iRRAM_kirk_exp(kirk_real_t *x)
-{
-	kirk_real_t *in[] = {x}, *out[1];
-	auto p = kirk::irram::eval(in, 1, out, 1, my_exp);
-	return out[0];
-}
 
 int main(int argc, char **argv)
 {
 	iRRAM_initialize(argc, argv);
 	kirk_real_t *c = kirk_dyadic_test_real_d(3.75);
 
-	kirk_real_t *ex0 = iRRAM_kirk_exp(c);
+	kirk_real_t *ex0 = kirk_irram_exp(c);
 	kirk_real_unref(c);
 
 	kirk_apx_t apx;

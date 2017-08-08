@@ -16,7 +16,8 @@ LIB_HEADERS = \
 C_OBJS = \
 	kirk-c.o \
 	kirk-real-obj.o \
-	kirk-dyadic-real.o
+	kirk-dyadic-real.o \
+	test-irram.o
 
 CC_OBJS = \
 	kirk-iRRAM.o \
@@ -27,7 +28,7 @@ HS_OBJS = \
 	test-hs.o
 
 TESTS = \
-	test-iRRAM \
+	test-irram \
 	test-hs
 
 HSC = ghc
@@ -50,9 +51,9 @@ ifneq ($(IRRAM),)
   CFLAGS      += -pthread
   CXXFLAGS    += -pthread
   CXX          = g++-5 # unfortunately, my iRRAM branch requires this
-test-iRRAM: LDFLAGS += -pthread -L$(IRRAM)/lib -Wl,-rpath,$(IRRAM)/lib
-test-iRRAM: LDLIBS  += -liRRAM
-tests: test-iRRAM
+test-irram: LDFLAGS += -pthread -L$(IRRAM)/lib -Wl,-rpath,$(IRRAM)/lib
+test-irram: LDLIBS  += -liRRAM
+tests: test-irram
 endif
 
 ifneq ($(HMPFR),)
@@ -72,7 +73,7 @@ ARFLAGS = rcs
 
 all: libkirk.a tests
 
-test-iRRAM: test-iRRAM.o
+test-irram: test-irram.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 test-hs: test-hs.o Data/Number/Kirk.o
