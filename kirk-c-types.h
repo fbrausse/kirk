@@ -9,17 +9,7 @@
 #include <mpfr.h>
 #include <errno.h>	/* EINVAL */
 
-#define KIRK_VER_MAJOR	0
-#define KIRK_VER_MINOR	0
-#define KIRK_VERSION	(KIRK_VER_MAJOR << 16 | KIRK_VER_MINOR << 8 | 0 << 0)
-
-#if defined(KIRK_DLL) && (defined(_WIN32) || defined(__BEOS__))
-# define KIRK_IMPORT	__declspec(dllimport)
-# define KIRK_EXPORT	__declspec(dllexport)
-#else
-# define KIRK_IMPORT
-# define KIRK_EXPORT
-#endif
+#include "kirk-common.h"
 
 #ifdef KIRK_INTERNAL
 # define KIRK_API	extern KIRK_EXPORT
@@ -34,16 +24,7 @@
 #  error support for extern-inline is required to compile kirk as C++; \
          it has not been implemented
 # endif
-# if defined(__GNUC__) || defined(__clang__)
-#  define restrict __restrict__
-# elif defined(_MSC_VER)
-#  define restrict __restrict
-# else
-#  define restrict
-# endif
 extern "C" {
-#elif !defined(__STDC_VERSION__) || (__STDC_VERSION__ -0) < 199901L
-# error need at least C99
 #endif
 
 #define KIRK_CONCAT3(a,b,c)			a ## b ## c

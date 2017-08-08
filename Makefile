@@ -6,6 +6,7 @@ LIB_OBJS = \
 	kirk-c.o
 
 LIB_HEADERS = \
+	kirk-common.h \
 	kirk-c-types.h
 
 C_OBJS = \
