@@ -20,7 +20,7 @@ C_OBJS = \
 
 CC_OBJS = \
 	kirk-iRRAM.o \
-	test-iRRAM.o
+	kirk-irram-api.o
 
 HS_OBJS = \
 	Data/Number/Kirk.o \
@@ -40,8 +40,12 @@ IRRAM = $(realpath $(HOME)/iRRAM/installed)
 HMPFR = $(shell $(HS_PKGS) hmpfr-0.4.3)
 
 ifneq ($(IRRAM),)
-  LIB_OBJS    += kirk-iRRAM.o
-  LIB_HEADERS += kirk-iRRAM.hh
+  LIB_OBJS    += \
+	kirk-iRRAM.o \
+	kirk-irram-api.o
+  LIB_HEADERS += \
+	kirk-iRRAM.hh \
+	kirk-irram-api.h
   CPPFLAGS    += -I$(IRRAM)/include -DKIRK_HAVE_IRRAM
   CFLAGS      += -pthread
   CXXFLAGS    += -pthread
