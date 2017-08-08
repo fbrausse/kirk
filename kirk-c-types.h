@@ -11,7 +11,8 @@
 
 #include "kirk-common.h"
 
-#ifdef KIRK_INTERNAL
+#undef KIRK_API
+#ifdef KIRK_INTERNAL_C_TYPES
 # define KIRK_API	extern KIRK_EXPORT
 #else
 # define KIRK_API	KIRK_IMPORT

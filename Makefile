@@ -3,15 +3,20 @@ DESTDIR ?= /usr/local
 INSTALL  = install
 
 LIB_OBJS = \
-	kirk-c.o
+	kirk-c.o \
+	kirk-real-obj.o \
+	kirk-dyadic-real.o
 
 LIB_HEADERS = \
 	kirk-common.h \
-	kirk-c-types.h
+	kirk-c-types.h \
+	kirk-real-obj.h \
+	kirk-dyadic-real.h
 
 C_OBJS = \
 	kirk-c.o \
-	test-const.o
+	kirk-real-obj.o \
+	kirk-dyadic-real.o
 
 CC_OBJS = \
 	kirk-iRRAM.o \
@@ -66,7 +71,7 @@ all: libkirk.a tests
 test-iRRAM: test-iRRAM.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-test-hs: test-hs.o test-const.o Data/Number/Kirk.o
+test-hs: test-hs.o Data/Number/Kirk.o
 	$(HSC) $(HSFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 test-hs.o: Data/Number/Kirk.hi
 

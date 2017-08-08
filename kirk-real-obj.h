@@ -1,0 +1,71 @@
+
+#ifndef KIRK_REAL_OBJ_H
+#define KIRK_REAL_OBJ_H
+
+#include "kirk-c-types.h"
+
+#undef KIRK_API
+#ifdef KIRK_INTERNAL_REAL_OBJ
+# define KIRK_API	extern KIRK_EXPORT
+#else
+# define KIRK_API	KIRK_IMPORT
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct kirk_real_obj_class_t   kirk_real_obj_class_t;
+
+typedef struct kirk_real_obj_t         kirk_real_obj_t;
+typedef struct kirk_test_real_t        kirk_test_real_t;
+typedef struct kirk_dyadic_test_real_t kirk_dyadic_test_real_t;
+
+typedef void kirk_real_obj_destroy_f(kirk_real_obj_t *);
+
+struct kirk_real_obj_class_t {
+	kirk_real_class_t parent;
+	kirk_real_obj_destroy_f *finalize;
+};
+
+struct kirk_real_obj_t {
+	kirk_real_t parent;
+	kirk_real_obj_destroy_f *destroy;
+	size_t refcnt;
+};
+
+struct kirk_test_real_t {
+	kirk_real_obj_t parent;
+	size_t id;
+};
+
+struct kirk_dyadic_test_real_t {
+	kirk_test_real_t parent;
+	mpfr_t dyadic;
+};
+
+KIRK_API const kirk_real_obj_class_t kirk_real_obj_class;
+KIRK_API const kirk_real_obj_class_t kirk_test_real_class;
+KIRK_API const kirk_real_obj_class_t kirk_dyadic_test_real_class;
+
+KIRK_API        void kirk_real_obj_destroy_free(kirk_real_obj_t *r);
+
+KIRK_API        void kirk_real_obj_init(kirk_real_obj_t *r);
+
+KIRK_API inline void kirk_real_obj_finalize(kirk_real_obj_t *);
+
+KIRK_API        void kirk_test_real_init(kirk_test_real_t *r);
+
+KIRK_API        void kirk_dyadic_test_real_init(kirk_dyadic_test_real_t *r,
+                                                mpfr_prec_t prec);
+
+inline void kirk_real_obj_finalize(kirk_real_obj_t *r)
+{
+	((kirk_real_obj_class_t *)r->parent.clazz)->finalize(r);
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

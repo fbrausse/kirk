@@ -1,5 +1,5 @@
 
-#define KIRK_INTERNAL
+#define KIRK_INTERNAL_C_TYPES
 
 #include "kirk-c-types.h"
 
