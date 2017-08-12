@@ -32,6 +32,12 @@ static kirk_real_t * run12(REAL (*f)(const REAL &, const REAL &), kirk_real_t *x
 	return out[0];
 }
 
+extern "C" kirk_real_t * kirk_irram_add    (kirk_real_t *x, kirk_real_t *y) { return run12(iRRAM::operator+, x, y); }
+extern "C" kirk_real_t * kirk_irram_neg    (kirk_real_t *x) { return run11([](const REAL &x){ return -x; }, x); }
+extern "C" kirk_real_t * kirk_irram_sub    (kirk_real_t *x, kirk_real_t *y) { return run12(iRRAM::operator-, x, y); }
+extern "C" kirk_real_t * kirk_irram_mul    (kirk_real_t *x, kirk_real_t *y) { return run12(iRRAM::operator*, x, y); }
+extern "C" kirk_real_t * kirk_irram_inv    (kirk_real_t *x) { return run11([](const REAL &x) { return 1/x; }, x); }
+extern "C" kirk_real_t * kirk_irram_div    (kirk_real_t *x, kirk_real_t *y) { return run12(iRRAM::operator/, x, y); }
 extern "C" kirk_real_t * kirk_irram_pi     (void) { return run10(iRRAM::pi); }
 extern "C" kirk_real_t * kirk_irram_e      (void) { return run10(iRRAM::euler); }
 extern "C" kirk_real_t * kirk_irram_ln2    (void) { return run10(iRRAM::ln2); }

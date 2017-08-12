@@ -15,6 +15,12 @@
 extern "C" {
 #endif
 
+KIRK_API kirk_real_t * kirk_irram_add    (kirk_real_t *, kirk_real_t *);
+KIRK_API kirk_real_t * kirk_irram_neg    (kirk_real_t *);
+KIRK_API kirk_real_t * kirk_irram_sub    (kirk_real_t *, kirk_real_t *);
+KIRK_API kirk_real_t * kirk_irram_mul    (kirk_real_t *, kirk_real_t *);
+KIRK_API kirk_real_t * kirk_irram_inv    (kirk_real_t *);
+KIRK_API kirk_real_t * kirk_irram_div    (kirk_real_t *, kirk_real_t *);
 KIRK_API kirk_real_t * kirk_irram_pi     (void);
 KIRK_API kirk_real_t * kirk_irram_e      (void);
 KIRK_API kirk_real_t * kirk_irram_ln2    (void);
