@@ -6,7 +6,8 @@
 #include <iRRAM/lib.h>
 #include <iRRAM/version.h>	/* iRRAM_TLS_STD */
 
-static_assert(iRRAM_TLS_STD-0, "iRRAM configured with --with-tls=thread_local");
+static_assert((iRRAM_HAVE_TLS-0) && (iRRAM_TLS_STD-0),
+              "iRRAM configured with --with-tls=thread_local");
 
 #include "kirk-iRRAM.hh"
 #include "log2.h"
@@ -31,7 +32,7 @@ typedef std::shared_ptr<kirk::irram::machine> machine_t;
 
 static ::kirk_eff_t current_iRRAM_effort()
 {
-	return (unsigned)iRRAM::state.ACTUAL_STACK.prec_step;
+	return (unsigned)iRRAM::actual_stack().prec_step;
 }
 
 static void convert(sizetype &e, const ::kirk_bound_t &b)
@@ -99,7 +100,7 @@ static iRRAM::REAL make_REAL(const ::kirk_real_t &kr,
 
 iRRAM::REAL kirk::irram::make_REAL(const ::kirk_real_t &kr, bool apx_abs)
 {
-	::kirk_abs_t prec = iRRAM::state.ACTUAL_STACK.actual_prec;
+	::kirk_abs_t prec = iRRAM::actual_stack().actual_prec;
 	::kirk_apx_t apx;
 	DYADIC d;
 	::kirk_apx_init2(&apx, -prec);
@@ -257,8 +258,8 @@ void machine::computation_prepare(vector<REAL> &in)
 {
 	in.reserve(inputs.size());
 	::kirk_apx_t apx;
-	::kirk_abs_t acc = iRRAM::state.ACTUAL_STACK.actual_prec;
-//	::kirk_eff_t eff = (unsigned)iRRAM::state.ACTUAL_STACK.prec_step;
+	::kirk_abs_t acc = iRRAM::actual_stack().actual_prec;
+//	::kirk_eff_t eff = (unsigned)iRRAM::actual_stack().prec_step;
 	::kirk_apx_init2(&apx, -acc);
 	DYADIC dd;
 
@@ -296,8 +297,8 @@ void machine::computation_finished(const vector<REAL> &out)
 int machine::compute(std::weak_ptr<machine> wp, func_type f)
 {
 	//KIRK_MACHINE_DEBUG(" iterating w/ effort %u...\n",
-	//		    (effort_t)state.ACTUAL_STACK.prec_step);
-	iRRAM::state.infinite = 0;
+	//		    (effort_t)iRRAM::actual_stack().prec_step);
+	iRRAM::state->infinite = 0;
 	std::vector<REAL> in, out;
 
 	if (std::shared_ptr<machine> p = wp.lock()) {
@@ -314,7 +315,7 @@ int machine::compute(std::weak_ptr<machine> wp, func_type f)
 
 	if (std::shared_ptr<machine> p = wp.lock()) {
 		p->computation_finished(out);
-		iRRAM::state.infinite = !p->cancelled;
+		iRRAM::state->infinite = !p->cancelled;
 	}
 
 	return 0;
