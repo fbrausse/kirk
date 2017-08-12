@@ -13,10 +13,14 @@ import Data.Number.MPFR.FFIhelper (peekP)
 import Data.Number.MPFR.Instances.Near ()
 import Foreign.Marshal.Utils
 
+#if KIRK_BOUND_SIZE_GMP-0
+# error no support for generic GMP type
+#else
 data KirkBoundT = KirkBoundT
   { k_exponent :: Int64
   , k_mantissa :: Word64
   }
+#endif
 
 instance Storable KirkBoundT where
   sizeOf _    = 16

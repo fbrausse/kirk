@@ -65,7 +65,7 @@ endif
 
 override CC  += -std=c99
 override CXX += -std=c++14
-CPPFLAGS     += -DKIRK_CHECK_BOUND
+CPPFLAGS     += -DKIRK_CHECK_BOUND -UKIRK_BOUND_SIZE_GMP
 CFLAGS        = -O2 -Wall -Wextra -pedantic
 CXXFLAGS      = -O2 -Wall -Wextra -pedantic
 HSFLAGS       = -O2 -Wall -Wextra -cpp

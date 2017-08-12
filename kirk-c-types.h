@@ -47,11 +47,18 @@ enum {
 	KIRK_INFO_HAVE_HMPFR = 1U << 1,
 };
 
-#define KIRK_BOUND_MANT_BITS		GMP_NUMB_BITS
-#define KIRK_BOUND_EXP_MIN		(kirk_bound_exp_t)KIRK_BOUND_MANT_1HALF
-#define KIRK_BOUND_EXP_MAX		(kirk_bound_exp_t)~KIRK_BOUND_MANT_1HALF
+#if KIRK_BOUND_SIZE_GMP-0
+# define KIRK_BOUND_MANT_BITS		GMP_NUMB_BITS
 typedef KIRK_UINT_TYPE(GMP_LIMB_BITS)	kirk_bound_mant_t;
 typedef KIRK_INT_TYPE(GMP_LIMB_BITS)	kirk_bound_exp_t;
+#else
+# define KIRK_BOUND_MANT_BITS		64
+typedef uint64_t			kirk_bound_mant_t;
+typedef int64_t				kirk_bound_exp_t;
+#endif
+
+#define KIRK_BOUND_EXP_MIN		(kirk_bound_exp_t)KIRK_BOUND_MANT_1HALF
+#define KIRK_BOUND_EXP_MAX		(kirk_bound_exp_t)~KIRK_BOUND_MANT_1HALF
 
 typedef struct kirk_bound_t             kirk_bound_t;
 typedef struct kirk_apx_t               kirk_apx_t;
