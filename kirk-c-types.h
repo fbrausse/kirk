@@ -8,6 +8,7 @@
 #include <math.h>	/* (ld|fr)exp() */
 #include <mpfr.h>
 #include <errno.h>	/* EINVAL */
+#include <assert.h>
 
 #include "kirk-common.h"
 
@@ -208,6 +209,11 @@ struct kirk_apx_t {
 
 #define KIRK_MPFR_N_LIMBS(p)	(1 + ((p)-1) / GMP_NUMB_BITS)
 #define KIRK_MPFR_MSL(x)	(KIRK_MPFR_N_LIMBS(mpfr_get_prec(x))-1)
+#ifdef MPFR_SIGN
+# define KIRK_MPFR_SIGN(x)	MPFR_SIGN(x)
+#else
+# define KIRK_MPFR_SIGN(x)	mpfr_sgn(x)
+#endif
 
 inline void kirk_bound_set_zero(kirk_bound_t *r)
 {
@@ -221,7 +227,7 @@ inline kirk_ret_t kirk_bound_nextafter(kirk_bound_t *r, const kirk_bound_t *b)
 	r->mantissa = b->mantissa + 1;
 	if (!r->mantissa) {
 		r->mantissa = KIRK_BOUND_MANT_1HALF;
-#ifdef KIRK_CHECK_BOUND
+#if KIRK_CHECK_BOUND-0
 		if (r->exponent == KIRK_BOUND_EXP_MAX)
 			return KIRK_ERR_EXP_OVFL;
 #endif
@@ -252,7 +258,7 @@ inline kirk_ret_t kirk_bound_add_2exp(kirk_bound_t *r,
                                       const kirk_bound_t *b,
                                       kirk_bound_exp_t e)
 {
-#if KIRK_CHECK_BOUND
+#if KIRK_CHECK_BOUND-0
 	if (e == KIRK_BOUND_EXP_MAX)
 		return KIRK_ERR_EXP_OVFL;
 #endif
@@ -269,7 +275,7 @@ inline kirk_ret_t kirk_bound_shift(kirk_bound_t *r,
 			r->exponent = KIRK_BOUND_EXP_MIN;
 			r->mantissa = KIRK_BOUND_MANT_1HALF;
 		}
-#ifdef KIRK_CHECK_BOUND
+#if KIRK_CHECK_BOUND-0
 		else if (e > 0 && b->exponent > KIRK_BOUND_EXP_MAX - e)
 			return KIRK_ERR_EXP_OVFL;
 #endif
@@ -303,12 +309,41 @@ inline kirk_ret_t kirk_bound_mpfr_size(kirk_bound_t *b, mpfr_srcptr x)
 	if (mpfr_zero_p(x)) {
 		kirk_bound_set_zero(b);
 	} else {
-#ifdef KIRK_CHECK_BOUND
+#if KIRK_CHECK_BOUND-0
 		if (!mpfr_regular_p(x))
 			return -EINVAL;
 #endif
-		b->mantissa = x->_mpfr_d[KIRK_MPFR_MSL(x)];
+		size_t k = KIRK_MPFR_N_LIMBS(mpfr_get_prec(x));
+		int n = KIRK_BOUND_MANT_BITS;
+		b->mantissa = 0;
 		b->exponent = mpfr_get_exp(x);
+		while (k && n >= GMP_NUMB_BITS)
+			b->mantissa |= (kirk_bound_mant_t)x->_mpfr_d[--k]
+			               << (n -= GMP_NUMB_BITS);
+		if (k && n > 0)
+			b->mantissa |= x->_mpfr_d[--k] >> -(n -= GMP_NUMB_BITS);
+		/* k n x | inc
+		 * ------+----
+		 * 0 < < | 0 ceil
+		 * 0 < > | 1 floor
+		 * 0 = < | 0 exact
+		 * 0 = > | 0 exact
+		 * 0 > < | 0 exact
+		 * 0 > > | 0 exact
+		 * 1 < < | 0 ceil
+		 * 1 < > | 1 floor
+		 * 1 = < | 0 ceil
+		 * 1 = > | 1 floor
+		 * 1 > < | x impossible
+		 * 1 > > | x impossible
+		 */
+		int inc = 0;
+		if (n < 0 || (!n && k))
+			inc = KIRK_MPFR_SIGN(x) > 0;
+		else
+			assert(!k); /* exact */
+		if (inc)
+			return kirk_bound_nextafter(b, b);
 	}
 	return KIRK_SUCCESS;
 }
