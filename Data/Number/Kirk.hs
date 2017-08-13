@@ -51,13 +51,10 @@ instance Storable KirkApxT where
     pokeByteOff ptr 0 r
     pokeByteOff ptr 16 c
 
-newtype AbsAcc = AbsAcc Int32
-newtype Effort = Effort Word32
-
 foreign import ccall "kirk_real_ref"     kirk_real_ref     :: Ptr KirkRealT -> IO (Ptr KirkRealT)
 foreign import ccall "kirk_real_unref"   kirk_real_unref   :: Ptr KirkRealT -> IO ()
-foreign import ccall "kirk_real_apx_abs" kirk_real_apx_abs :: Ptr KirkRealT -> Ptr KirkApxT -> AbsAcc -> IO ()
-foreign import ccall "kirk_real_apx_eff" kirk_real_apx_eff :: Ptr KirkRealT -> Ptr KirkApxT -> Effort -> IO ()
+foreign import ccall "kirk_real_apx_abs" kirk_real_apx_abs :: Ptr KirkRealT -> Ptr KirkApxT -> Int32 -> IO ()
+foreign import ccall "kirk_real_apx_eff" kirk_real_apx_eff :: Ptr KirkRealT -> Ptr KirkApxT -> Word32 -> IO ()
 
 foreign import ccall "kirk_apx_init"     kirk_apx_init     :: Ptr KirkApxT -> IO ()
 --foreign import ccall "kirk_apx_init2"    kirk_apx_init2    :: Ptr KirkApxT -> mpfr_prec_t -> IO ()
@@ -69,14 +66,27 @@ foreign import ccall "&kirk_real_unref"  p_kirk_real_unref :: FunPtr (Ptr KirkRe
 get_real_ptr :: IO (Ptr KirkRealT) -> IO (ForeignPtr KirkRealT)
 get_real_ptr get_real = get_real >>= newForeignPtr p_kirk_real_unref
 
-do_real_apx_abs :: Ptr KirkRealT -> AbsAcc -> IO KirkApxT
-do_real_apx_abs real accuracy =
-  with (KirkApxT (KirkBoundT 0 0) 0) $ \p -> do
-    kirk_apx_init p
-    kirk_real_apx_abs real p accuracy
-    q <- peek p
-    kirk_apx_fini p
-    return q
+do_real_apx :: Ptr KirkRealT -> Ptr KirkApxT -> KirkSeq0Idx -> IO ()
+do_real_apx real apx (AbsAcc acc) = kirk_real_apx_abs real apx acc
+do_real_apx real apx (Effort eff) = kirk_real_apx_eff real apx eff
+
+data KirkSeq0Idx = AbsAcc Int32
+                 | Effort Word32
+
+class KirkImportReal a where
+  approx :: a -> KirkSeq0Idx -> IO KirkApxT
+
+data KirkReal = KirkReal (ForeignPtr KirkRealT)
+
+instance KirkImportReal KirkReal where
+  approx (KirkReal real) idx =
+    withForeignPtr real $ \r ->
+      with (KirkApxT (KirkBoundT 0 0) 0) $ \p -> do
+        kirk_apx_init p
+        do_real_apx r p idx
+        q <- peek p
+        kirk_apx_fini p
+        return q
 
 {-data KirkRealClassT = KirkRealClassT
   { ref   :: FunPtr (Ptr KirkRealT -> IO (Ptr KirkRealT))
