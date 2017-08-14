@@ -399,7 +399,7 @@ inline void kirk_apx_init2(kirk_apx_t *apx, mpfr_prec_t prec)
 
 inline void kirk_apx_cpy(kirk_apx_t *tgt, const kirk_apx_t *src)
 {
-#if 1
+#if 0
 	kirk_apx_set(tgt, src->center, &src->radius);
 #else
 	mpfr_set_prec(tgt->center, mpfr_get_prec(src->center));

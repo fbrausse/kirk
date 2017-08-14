@@ -169,6 +169,8 @@ struct kirk::irram::machine : std::enable_shared_from_this<machine> {
 	::kirk_eff_t max_effort_requested;
 	bool more_accuracy_requested;
 
+	// TODO: store eventual iRRAM_Numerical_Exception(::type)
+
 	void computation_prepare(std::vector<iRRAM::REAL> &in);
 	void computation_finished(const std::vector<iRRAM::REAL> &out);
 
@@ -407,7 +409,7 @@ void out_real::request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const
 	std::shared_lock<decltype(os.mtx)> lock(os.mtx);
 	proc->run(os, a);
 	os.cond.wait(lock, [&]{return a >= os.accuracy;});
-	kirk_apx_cpy(apx, &os.apx);
+	kirk_apx_set(apx, os.apx.center, &os.apx.radius);
 }
 /*
 void out_real::request_eff(::kirk_apx_t *apx, ::kirk_eff_t e) const
