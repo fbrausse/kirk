@@ -35,7 +35,7 @@ static ::kirk_eff_t current_iRRAM_effort()
 	return (unsigned)iRRAM::actual_stack().prec_step;
 }
 
-static void convert(sizetype &e, const ::kirk_bound_t &b)
+void kirk::irram::convert(sizetype &e, const ::kirk_bound_t &b)
 {
 	using im_t = typename iRRAM::sizetype::mantissa_t;
 	/* b = bm/2^C * 2^be
@@ -60,7 +60,7 @@ static void convert(sizetype &e, const ::kirk_bound_t &b)
 	sizetype_normalize(e);
 }
 
-static void convert(::kirk_bound_t &b, const sizetype &e)
+void kirk::irram::convert(::kirk_bound_t &b, const sizetype &e)
 {
 	using im_t = typename iRRAM::sizetype::mantissa_t;
 	im_t m = e.mantissa;

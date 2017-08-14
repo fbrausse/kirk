@@ -21,6 +21,9 @@ std::shared_ptr<machine> eval(::kirk_real_t *const *in, size_t n_in,
 
 iRRAM::REAL make_REAL(const ::kirk_real_t &, bool apx_abs = true);
 
+void convert(iRRAM::sizetype &e, const ::kirk_bound_t &b);
+void convert(::kirk_bound_t &b, const iRRAM::sizetype &e);
+
 }}
 
 #endif
