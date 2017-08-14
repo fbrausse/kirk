@@ -2,13 +2,29 @@
 #ifndef KIRK_C_TYPES_H
 #define KIRK_C_TYPES_H
 
-#include <stdint.h>	/* [u]int32_t */
+#include <stdint.h>	/* [u]int32_t, intmax_t for MPFR */
 #include <string.h>	/* memset() */
 #include <float.h>	/* DBL_MANT_DIG */
 #include <math.h>	/* (ld|fr)exp() */
-#include <mpfr.h>
 #include <errno.h>	/* EINVAL */
 #include <assert.h>
+
+#if KIRK_BOUND_SIZE_GMP-0
+# include <gmp.h>
+# define KIRK_BOUND_MANT_BITS	GMP_NUMB_BITS
+#else
+# define KIRK_BOUND_MANT_BITS	64
+#endif
+
+#if ULONG_MAX/2 < (1UL << KIRK_BOUND_MANT_BITS-1)
+# define KIRK_MPFR_NEED_INTMAX_T
+#endif
+
+#if defined(KIRK_MPFR_NEED_INTMAX_T) || defined(__cplusplus)
+# define MPFR_USE_INTMAX_T
+#endif
+
+#include <mpfr.h>
 
 #include "kirk-common.h"
 
@@ -48,13 +64,11 @@ enum {
 };
 
 #if KIRK_BOUND_SIZE_GMP-0
-# define KIRK_BOUND_MANT_BITS		GMP_NUMB_BITS
-typedef KIRK_UINT_TYPE(GMP_LIMB_BITS)	kirk_bound_mant_t;
-typedef KIRK_INT_TYPE(GMP_LIMB_BITS)	kirk_bound_exp_t;
+typedef KIRK_UINT_TYPE(GMP_LIMB_BITS)		kirk_bound_mant_t;
+typedef KIRK_INT_TYPE(GMP_LIMB_BITS)		kirk_bound_exp_t;
 #else
-# define KIRK_BOUND_MANT_BITS		64
-typedef uint64_t			kirk_bound_mant_t;
-typedef int64_t				kirk_bound_exp_t;
+typedef KIRK_UINT_TYPE(KIRK_BOUND_MANT_BITS)	kirk_bound_mant_t;
+typedef KIRK_INT_TYPE(KIRK_BOUND_MANT_BITS)	kirk_bound_exp_t;
 #endif
 
 #define KIRK_BOUND_EXP_MIN		(kirk_bound_exp_t)KIRK_BOUND_MANT_1HALF
@@ -122,8 +136,10 @@ KIRK_API inline void             kirk_bound_max(kirk_bound_t *r,
                                                 const kirk_bound_t *c);
 /* \requires mpfr_number_p(x): x must be neither NaN nor an infinity
  * \ensures  b <= |x| < (b->mantissa+1)/2^C * 2^(b->exponent) */
-KIRK_API inline kirk_ret_t       kirk_bound_mpfr_size(kirk_bound_t *b,
-                                                      mpfr_srcptr x);
+KIRK_API inline kirk_ret_t       kirk_bound_set_mpfr(kirk_bound_t *b,
+                                                     const mpfr_t x);
+KIRK_API inline void             kirk_bound_get_mpfr(const kirk_bound_t *b,
+                                                     mpfr_t x);
 
 KIRK_API inline void kirk_apx_init (kirk_apx_t *);
 KIRK_API inline void kirk_apx_init2(kirk_apx_t *, mpfr_prec_t /* TODO: std-C */);
@@ -311,7 +327,7 @@ inline void kirk_bound_max(kirk_bound_t *r,
 	}
 }
 
-inline kirk_ret_t kirk_bound_mpfr_size(kirk_bound_t *b, mpfr_srcptr x)
+inline kirk_ret_t kirk_bound_set_mpfr(kirk_bound_t *b, const mpfr_t x)
 {
 	if (mpfr_zero_p(x)) {
 		kirk_bound_set_zero(b);
@@ -353,6 +369,16 @@ inline kirk_ret_t kirk_bound_mpfr_size(kirk_bound_t *b, mpfr_srcptr x)
 			return kirk_bound_nextafter(b, b);
 	}
 	return KIRK_SUCCESS;
+}
+
+KIRK_API inline void kirk_bound_get_mpfr(const kirk_bound_t *b, mpfr_t r)
+{
+	mpfr_set_prec(r, KIRK_BOUND_MANT_BITS);
+#ifdef KIRK_MPFR_NEED_INTMAX_T
+	mpfr_set_uj_2exp(r, b->mantissa, b->exponent, MPFR_RNDU);
+#else
+	mpfr_set_ui_2exp(r, b->mantissa, b->exponent, MPFR_RNDU);
+#endif
 }
 
 /* --------------------------------------------------------------------------
