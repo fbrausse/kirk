@@ -62,6 +62,10 @@ KIRK_API        void kirk_test_real_init(kirk_test_real_t *r);
 KIRK_API        void kirk_dyadic_test_real_init(kirk_dyadic_test_real_t *r,
                                                 mpfr_prec_t prec);
 
+/* caches approximations internally to produce deterministic results when the
+ * backing kirk_real_t does not provide it */
+KIRK_API kirk_real_t * kirk_real_sv_create(kirk_real_t *backend, int apx_native, int eff_native);
+
 inline void kirk_real_obj_finalize(kirk_real_obj_t *r)
 {
 	((kirk_real_obj_class_t *)r->parent.clazz)->finalize(r);

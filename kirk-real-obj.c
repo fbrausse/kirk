@@ -149,3 +149,122 @@ void kirk_dyadic_test_real_init(kirk_dyadic_test_real_t *r,
 	((kirk_real_t *)r)->clazz = &kirk_dyadic_test_real_class.parent;
 	mpfr_init2(r->dyadic, prec);
 }
+
+
+#include "array.h"
+
+typedef struct kirk_real_sv_t     kirk_real_sv_t;
+
+struct kirk_bound_cache_t {
+	kirk_bound_t *data;
+	size_t size, valid;
+};
+
+struct kirk_idx_cache_t {
+	size_t *data;
+	size_t size, valid;
+};
+
+struct kirk_real_sv_cacc {
+	kirk_abs_t acc;
+	size_t idx;
+};
+
+struct kirk_real_sv_ceff {
+	kirk_eff_t eff;
+	size_t idx;
+};
+
+struct kirk_real_sv_t {
+	kirk_real_obj_t parent;
+	VARR_DECL_ANON(kirk_apx_t) apx;
+	VARR_DECL_ANON(struct kirk_real_sv_cacc) acc;
+	VARR_DECL_ANON(struct kirk_real_sv_ceff) eff;
+	kirk_real_t *backend;
+};
+
+static int kirk_cmp_acc(const void *_a, const void *_b)
+{
+	const kirk_abs_t *a = _a, *b = _b;
+	return *a > *b; /* minimize memcpy: larger absolute accuracy to front */
+}
+
+static int kirk_cmp_eff(const void *_a, const void *_b)
+{
+	const kirk_eff_t *a = _a, *b = _b;
+	return *a < *b; /* minimize memcpy: lower efforts to front */
+}
+
+static void kirk_real_sv_apx_abs(const kirk_real_t *r, kirk_apx_t *apx, kirk_abs_t acc)
+{
+	/* cast to non-const is OK since kirk_real_sv_t only exists malloc'ed */
+	kirk_real_sv_t *tr = (kirk_real_sv_t *)r;
+	intptr_t i = varr_ck_bsearch(&acc, &tr->acc, kirk_cmp_acc);
+	if (i < 0) {
+		/* not found -> insert */
+		kirk_real_apx_abs(tr->backend, apx, acc);
+		struct kirk_apx_t apx2;
+		kirk_apx_init2(&apx2, mpfr_get_prec(apx->center));
+		kirk_apx_cpy(&apx2, apx);
+		struct kirk_real_sv_cacc cacc = { acc, tr->apx.valid };
+		varr_append(&tr->apx,&apx2,1,1);
+		varr_insert(&tr->acc,~i,&cacc,1,1);
+	} else {
+		kirk_apx_cpy(apx, &tr->apx.v[tr->acc.v[i].idx]);
+	}
+}
+
+static void kirk_real_sv_apx_eff(const kirk_real_t *r, kirk_apx_t *apx, kirk_eff_t eff)
+{
+	/* cast to non-const is OK since kirk_real_sv_t only exists malloc'ed */
+	kirk_real_sv_t *tr = (kirk_real_sv_t *)r;
+	intptr_t i = varr_ck_bsearch(&eff, &tr->eff, kirk_cmp_eff);
+	if (i < 0) {
+		/* not found -> insert */
+		kirk_real_apx_eff(tr->backend, apx, eff);
+		struct kirk_apx_t apx2;
+		kirk_apx_init2(&apx2, mpfr_get_prec(apx->center));
+		kirk_apx_cpy(&apx2, apx);
+		struct kirk_real_sv_ceff ceff = { eff, tr->apx.valid };
+		varr_append(&tr->apx,&apx2,1,1);
+		varr_insert(&tr->eff,~i,&ceff,1,1);
+	} else {
+		kirk_apx_cpy(apx, &tr->apx.v[tr->eff.v[i].idx]);
+	}
+}
+
+static const kirk_real_obj_class_t kirk_real_sv_class = {
+	.parent = {
+		.ref = kirk_real_obj_default_ref,
+		.unref = kirk_real_obj_default_unref,
+		.apx_abs = kirk_real_sv_apx_abs,
+		.apx_eff = kirk_real_sv_apx_eff,
+	},
+	.finalize = kirk_real_obj_default_finalize,
+};
+
+static void kirk_real_sv_destroy(kirk_real_obj_t *r)
+{
+	kirk_real_sv_t *tr = (kirk_real_sv_t *)r;
+	varr_fini(&tr->apx);
+	varr_fini(&tr->acc);
+	varr_fini(&tr->eff);
+	kirk_real_unref(tr->backend);
+	free(r);
+}
+
+kirk_real_t * kirk_real_sv_create(kirk_real_t *backend, int apx_native, int eff_native)
+{
+	/* TODO: respect apx_native, eff_native */
+	(void)apx_native;
+	(void)eff_native;
+	kirk_real_sv_t *tr = malloc(sizeof(kirk_real_sv_t));
+	kirk_real_obj_init(&tr->parent);
+	tr->parent.parent.clazz = &kirk_real_sv_class.parent;
+	tr->parent.destroy = kirk_real_sv_destroy;
+	memset(&tr->apx, 0, sizeof(tr->apx));
+	memset(&tr->acc, 0, sizeof(tr->acc));
+	memset(&tr->eff, 0, sizeof(tr->eff));
+	tr->backend = kirk_real_ref(backend);
+	return (kirk_real_t *)tr;
+}
