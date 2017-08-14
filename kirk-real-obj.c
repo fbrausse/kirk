@@ -8,34 +8,34 @@
 
 void kirk_real_obj_destroy_free(kirk_real_obj_t *r) { free((void *)r); }
 
-static kirk_real_t * real_obj_ref(kirk_real_t *r)
+kirk_real_t * kirk_real_obj_default_ref(kirk_real_t *r)
 {
 	struct kirk_real_obj_t *tr = (void *)r;
 	tr->refcnt++;
 	return r;
 }
 
-static void real_obj_unref(kirk_real_t *r)
+void kirk_real_obj_default_unref(kirk_real_t *r)
 {
 	struct kirk_real_obj_t *tr = (void *)r;
 	if (!--tr->refcnt)
 		kirk_real_obj_finalize(tr);
 }
 
-static void real_obj_finalize(kirk_real_obj_t *r)
+void kirk_real_obj_default_finalize(kirk_real_obj_t *r)
 {
 	if (r->destroy)
 		r->destroy(r);
 }
 
-const kirk_real_obj_class_t kirk_real_obj_class = {
+static const kirk_real_obj_class_t kirk_real_obj_class = {
 	.parent = {
-		.ref     = real_obj_ref,
-		.unref   = real_obj_unref,
+		.ref     = kirk_real_obj_default_ref,
+		.unref   = kirk_real_obj_default_unref,
 		.apx_abs = NULL,
 		.apx_eff = NULL,
 	},
-	.finalize = real_obj_finalize,
+	.finalize = kirk_real_obj_default_finalize,
 };
 
 void kirk_real_obj_init(kirk_real_obj_t *r)
@@ -47,7 +47,7 @@ void kirk_real_obj_init(kirk_real_obj_t *r)
 
 static kirk_real_t * test_ref(kirk_real_t *r)
 {
-	r = real_obj_ref(r);
+	r = kirk_real_obj_default_ref(r);
 	kirk_test_real_t *tr = (void *)r;
 	fprintf(stderr, "test-real #%zu ref'ed -> cnt: %zu\n", tr->id, tr->parent.refcnt);
 	return r;
@@ -58,7 +58,7 @@ static void test_unref(kirk_real_t *r)
 	kirk_test_real_t *tr = (void *)r;
 	fprintf(stderr, "test-real #%zu unref'ed -> cnt: %zu\n",
 	        tr->id, tr->parent.refcnt-1);
-	real_obj_unref(r);
+	kirk_real_obj_default_unref(r);
 }
 
 static void test_apx_abs(const kirk_real_t *r, kirk_apx_t *apx, kirk_abs_t a)
@@ -82,7 +82,7 @@ static void test_finalize(kirk_real_obj_t *r)
 	kirk_test_real_t *tr = (void *)r;
 	fprintf(stderr, "finalize(test-real #%zu, cnt: %zu)\n",
 	        tr->id, tr->parent.refcnt);
-	real_obj_finalize(r);
+	kirk_real_obj_default_finalize(r);
 }
 
 const kirk_real_obj_class_t kirk_test_real_class = {

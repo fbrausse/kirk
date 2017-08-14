@@ -29,7 +29,7 @@ struct kirk_real_obj_class_t {
 };
 
 struct kirk_real_obj_t {
-	kirk_real_t parent;
+	kirk_real_t parent; /* .clazz points to a kirk_real_obj_class_t */
 	kirk_real_obj_destroy_f *destroy;
 	size_t refcnt;
 };
@@ -44,13 +44,16 @@ struct kirk_dyadic_test_real_t {
 	mpfr_t dyadic;
 };
 
-KIRK_API const kirk_real_obj_class_t kirk_real_obj_class;
+/* contains pointers to the kirk_real_obj_default_*() functions, NULL otherwise */
+// KIRK_API const kirk_real_obj_class_t kirk_real_obj_class;
 KIRK_API const kirk_real_obj_class_t kirk_test_real_class;
 KIRK_API const kirk_real_obj_class_t kirk_dyadic_test_real_class;
 
-KIRK_API        void kirk_real_obj_destroy_free(kirk_real_obj_t *r);
-
-KIRK_API        void kirk_real_obj_init(kirk_real_obj_t *r);
+KIRK_API kirk_real_t * kirk_real_obj_default_ref(kirk_real_t *);
+KIRK_API        void   kirk_real_obj_default_unref(kirk_real_t *);
+KIRK_API        void   kirk_real_obj_default_finalize(kirk_real_obj_t *r);
+KIRK_API        void   kirk_real_obj_destroy_free(kirk_real_obj_t *r);
+KIRK_API        void   kirk_real_obj_init(kirk_real_obj_t *r);
 
 KIRK_API inline void kirk_real_obj_finalize(kirk_real_obj_t *);
 
