@@ -246,6 +246,9 @@ static const kirk_real_obj_class_t kirk_real_sv_class = {
 static void kirk_real_sv_destroy(kirk_real_obj_t *r)
 {
 	kirk_real_sv_t *tr = (kirk_real_sv_t *)r;
+	kirk_apx_t *apx;
+	varr_forall(apx,&tr->apx)
+		kirk_apx_fini(apx);
 	varr_fini(&tr->apx);
 	varr_fini(&tr->acc);
 	varr_fini(&tr->eff);

@@ -173,7 +173,7 @@ static inline int array_appendf(struct array *a, const char *fmt, ...)
 #define varr_append_a(a,b,double_sz)	_varr_append_a((struct array *)(a),VARR_ESZ(a),(struct array *)(b),VARR_ESZ(b),(double_sz))
 #define varr_insert(a,at,v,n,double_sz)	_varr_insert((struct array *)(a),(at),(v),(n),VARR_ESZ(a),(double_sz))
 
-#define varr_forall(vvar,a)		for (vvar = (a)->v; (vvar - (a)->v) < (a)->valid; vvar++)
+#define varr_forall(vvar,a)		for (vvar = (a)->v; (size_t)(vvar - (a)->v) < (a)->valid; vvar++)
 #define varr_qsort(a,cmp)		qsort((a)->v, (a)->valid, VARR_ESZ(a), (cmp))
 #define varr_ck_bsearch(key,a,cmp)	ck_bsearch(key, (a)->v, (a)->valid, VARR_ESZ(a), (cmp))
 #define varr_bsearch(key,a,cmp)		bsearch(key, (a)->v, (a)->valid, VARR_ESZ(a), (cmp))
