@@ -17,6 +17,7 @@ C_OBJS = \
 	kirk-c.o \
 	kirk-real-obj.o \
 	kirk-dyadic-real.o \
+	kirk-hs.o \
 	test-irram.o
 
 CC_OBJS = \
@@ -25,6 +26,7 @@ CC_OBJS = \
 
 HS_OBJS = \
 	Data/Number/Kirk.o \
+	Data/Number/Kirk/Irram.o \
 	test-hs.o
 
 HI_OBJS = $(HS_OBJS:.o=.hi)
@@ -36,11 +38,12 @@ TESTS = \
 HSC = ghc
 
 ifeq ($(HSC),ghc)
-  HS_PKGS = ghc-pkg --simple-output list
+  HS_PKGS_CMD = ghc-pkg --simple-output list
+  HS_LIBDIR = $(shell ghc --print-libdir)
 endif
 
 IRRAM = $(realpath $(HOME)/iRRAM/installed)
-HMPFR = $(shell $(HS_PKGS) hmpfr-0.4.3)
+HMPFR = $(shell $(HS_PKGS_CMD) hmpfr-0.4.3)
 
 ifneq ($(IRRAM),)
   LIB_OBJS    += \
@@ -59,8 +62,16 @@ endif
 
 ifneq ($(HMPFR),)
   CPPFLAGS += -DKIRK_HAVE_HMPFR
+  LIB_OBJS += kirk-hs.o
+kirk-hs.o: CPPFLAGS += -I$(HS_LIBDIR)/include
+test-hs: LDFLAGS += -L$(IRRAM)/lib
 test-hs: LDLIBS += -package $(HMPFR)
 tests: test-hs
+ifneq ($(IRRAM),)
+test-hs.o: Data/Number/Kirk/Irram.o
+#test-hs: LDFLAGS += -pthread -L$(IRRAM)/lib -Wl,-rpath,$(IRRAM)/lib
+test-hs: LDLIBS += -liRRAM -lstdc++
+endif
 endif
 
 override CC  += -std=c99
@@ -80,6 +91,9 @@ test-irram: test-irram.o
 test-hs: test-hs.o Data/Number/Kirk.o
 	$(HSC) $(HSFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 test-hs.o: Data/Number/Kirk.o
+
+kirk-hs.o: Data/Number/Kirk.o
+Data/Number/Kirk/Irram.o: Data/Number/Kirk.o
 
 $(TESTS): libkirk.a
 

@@ -18,7 +18,7 @@ kirk_real_t * kirk_real_obj_default_ref(kirk_real_t *r)
 void kirk_real_obj_default_unref(kirk_real_t *r)
 {
 	struct kirk_real_obj_t *tr = (void *)r;
-	if (!--tr->refcnt)
+	if (!tr->refcnt || !--tr->refcnt)
 		kirk_real_obj_finalize(tr);
 }
 
@@ -42,7 +42,7 @@ void kirk_real_obj_init(kirk_real_obj_t *r)
 {
 	r->parent.clazz = &kirk_real_obj_class.parent;
 	r->destroy = NULL;
-	r->refcnt = 1;
+	r->refcnt = 0;
 }
 
 static kirk_real_t * test_ref(kirk_real_t *r)

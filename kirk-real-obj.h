@@ -25,13 +25,15 @@ typedef void kirk_real_obj_destroy_f(kirk_real_obj_t *);
 
 struct kirk_real_obj_class_t {
 	kirk_real_class_t parent;
-	kirk_real_obj_destroy_f *finalize;
+	kirk_real_obj_destroy_f *finalize; /* overridden by specializations */
 };
 
 struct kirk_real_obj_t {
 	kirk_real_t parent; /* .clazz points to a kirk_real_obj_class_t */
-	kirk_real_obj_destroy_f *destroy;
-	size_t refcnt;
+	kirk_real_obj_destroy_f *destroy;  /* overridden for memory */
+	/*_Atomic*/ size_t refcnt;/*
+	unsigned acc_native : 1;
+	unsigned eff_native : 1;*/
 };
 
 struct kirk_test_real_t {
@@ -46,9 +48,10 @@ struct kirk_dyadic_test_real_t {
 
 /* contains pointers to the kirk_real_obj_default_*() functions, NULL otherwise */
 // KIRK_API const kirk_real_obj_class_t kirk_real_obj_class;
+/*
 KIRK_API const kirk_real_obj_class_t kirk_test_real_class;
 KIRK_API const kirk_real_obj_class_t kirk_dyadic_test_real_class;
-
+*/
 KIRK_API kirk_real_t * kirk_real_obj_default_ref(kirk_real_t *);
 KIRK_API        void   kirk_real_obj_default_unref(kirk_real_t *);
 KIRK_API        void   kirk_real_obj_default_finalize(kirk_real_obj_t *r);
