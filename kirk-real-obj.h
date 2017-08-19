@@ -31,7 +31,9 @@ struct kirk_real_obj_class_t {
 struct kirk_real_obj_t {
 	kirk_real_t parent; /* .clazz points to a kirk_real_obj_class_t */
 	kirk_real_obj_destroy_f *destroy;  /* overridden for memory */
-	/*_Atomic*/ size_t refcnt;/*
+	/*_Atomic*/ size_t refcnt;
+	unsigned char dangling;
+	/*
 	unsigned acc_native : 1;
 	unsigned eff_native : 1;*/
 };

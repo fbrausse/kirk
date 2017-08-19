@@ -136,8 +136,10 @@ struct out_real : ::kirk_real_t {
 	const machine_t     proc;
 	const size_t        out_idx;
 	std::atomic<size_t> refcnt;
+	std::atomic<bool>   dangling;
 
 	explicit out_real(machine_t proc, size_t out_idx);
+	~out_real();
 
 	void request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const;
 	void request_eff(::kirk_apx_t *apx, ::kirk_eff_t e) const;
@@ -363,7 +365,9 @@ void machine::run(real_out_sock &, ::kirk_eff_t e)
 
 static ::kirk_real_t * real_ref(::kirk_real_t *r)
 {
-	static_cast<out_real *>(r)->refcnt++;
+	out_real *tr = static_cast<out_real *>(r);
+	tr->refcnt += 1 - tr->dangling;
+	tr->dangling = false;
 	return r;
 }
 
@@ -400,7 +404,17 @@ out_real::out_real(machine_t proc, size_t out_idx)
 , proc(move(proc))
 , out_idx(out_idx)
 , refcnt(1)
+, dangling(true)
 {}
+
+out_real::~out_real()
+{
+	if (proc.use_count() <= 2) {
+		std::unique_lock<decltype(proc->mtx_outputs)> lock(proc->mtx_outputs);
+		proc->cancelled = true;
+		proc->output_requested.notify_one();
+	}
+}
 
 void out_real::request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const
 {
