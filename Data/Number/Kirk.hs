@@ -9,7 +9,7 @@ module Data.Number.Kirk (
   KirkFun10,kirk10,
   KirkFun11,kirk11,
   KirkFun12,kirk12,
-  KirkPtr,
+  KirkRealPtr,
 ) where
 
 import Foreign.Ptr
@@ -27,7 +27,7 @@ import System.IO.Unsafe
 # error no support for generic GMP type
 #endif
 
-type KirkPtr = Ptr KirkRealT
+type KirkRealPtr = Ptr KirkRealT
 
 data KirkBoundT = KirkBoundT
   { k_exponent :: Int64
@@ -63,20 +63,20 @@ instance Storable KirkApxT where
     pokeByteOff ptr 0 r
     pokeByteOff ptr 16 c
 
-foreign import ccall "kirk_real_ref"     kirk_real_ref     :: Ptr KirkRealT -> IO (Ptr KirkRealT)
-foreign import ccall "kirk_real_unref"   kirk_real_unref   :: Ptr KirkRealT -> IO ()
-foreign import ccall "kirk_real_apx_abs" kirk_real_apx_abs :: Ptr KirkRealT -> Ptr KirkApxT -> Int32 -> IO ()
-foreign import ccall "kirk_real_apx_eff" kirk_real_apx_eff :: Ptr KirkRealT -> Ptr KirkApxT -> Word32 -> IO ()
+foreign import ccall "kirk_real_ref"     kirk_real_ref     :: KirkRealPtr -> IO KirkRealPtr
+foreign import ccall "kirk_real_unref"   kirk_real_unref   :: KirkRealPtr -> IO ()
+foreign import ccall "kirk_real_apx_abs" kirk_real_apx_abs :: KirkRealPtr -> Ptr KirkApxT -> Int32 -> IO ()
+foreign import ccall "kirk_real_apx_eff" kirk_real_apx_eff :: KirkRealPtr -> Ptr KirkApxT -> Word32 -> IO ()
 
 foreign import ccall "kirk_apx_init"     kirk_apx_init     :: Ptr KirkApxT -> IO ()
 --foreign import ccall "kirk_apx_init2"    kirk_apx_init2    :: Ptr KirkApxT -> mpfr_prec_t -> IO ()
 foreign import ccall "kirk_apx_cpy"      kirk_apx_cpy      :: Ptr KirkApxT -> Ptr KirkApxT -> IO ()
 foreign import ccall "kirk_apx_fini"     kirk_apx_fini     :: Ptr KirkApxT -> IO ()
 
-foreign import ccall "kirk_real_sv_create" kirk_real_sv_create :: Ptr KirkRealT -> IO (Ptr KirkRealT)
+foreign import ccall "kirk_real_sv_create" kirk_real_sv_create :: KirkRealPtr -> IO KirkRealPtr
 
 foreign import ccall "&kirk_apx_fini"    p_kirk_apx_fini   :: FunPtr (Ptr KirkApxT -> IO ())
-foreign import ccall "&kirk_real_unref"  p_kirk_real_unref :: FunPtr (Ptr KirkRealT -> IO ())
+foreign import ccall "&kirk_real_unref"  p_kirk_real_unref :: FunPtr (KirkRealPtr -> IO ())
 
 data KirkSeq0Idx = AbsAcc Int32
                  | Effort Word32
@@ -87,7 +87,7 @@ class KirkImportReal a where
 foreign import ccall "kirk_real_hs_create" kirk_real_hs_create
   :: FunPtr (Ptr KirkApxT -> Int32 -> IO ())
   -> FunPtr (Ptr KirkApxT -> Word32 -> IO ())
-  -> IO (Ptr KirkRealT)
+  -> IO KirkRealPtr
 
 foreign import ccall "wrapper" wrap_apx_abs
   :: (Ptr KirkApxT -> Int32 -> IO ())
@@ -108,9 +108,9 @@ makeExportReal r = do
   eff_f <- wrap_apx_eff $ \ptr eff -> approx r (Effort eff) >>= copy_apx ptr
   kirk_real_hs_create acc_f eff_f >>= ref >>= newForeignPtr unref
 
-type KirkFun10 = Ptr KirkRealT
-type KirkFun11 = Ptr KirkRealT -> IO (Ptr KirkRealT)
-type KirkFun12 = Ptr KirkRealT -> Ptr KirkRealT -> IO (Ptr KirkRealT)
+type KirkFun10 = KirkRealPtr
+type KirkFun11 = KirkRealPtr -> IO KirkRealPtr
+type KirkFun12 = KirkRealPtr -> KirkRealPtr -> IO KirkRealPtr
 
 kirk10 :: KirkFun10 -> IO KirkReal
 kirk10 r = ref r >>= newForeignPtr unref >>= return . KirkReal

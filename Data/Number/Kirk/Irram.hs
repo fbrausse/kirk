@@ -26,11 +26,11 @@ foreign import ccall "kirk-irram-api.h" kirk_irram_pi      :: KirkFun10
 foreign import ccall "kirk-irram-api.h" kirk_irram_e       :: KirkFun10
 foreign import ccall "kirk-irram-api.h" kirk_irram_ln2     :: KirkFun10
 foreign import ccall "kirk-irram-api.h" kirk_irram_exp     :: KirkFun11
-foreign import ccall "kirk-irram-api.h" kirk_irram_pow     :: KirkPtr -> CInt -> IO KirkPtr
+foreign import ccall "kirk-irram-api.h" kirk_irram_pow     :: KirkRealPtr -> CInt -> IO KirkRealPtr
 foreign import ccall "kirk-irram-api.h" kirk_irram_pow_r   :: KirkFun12
 foreign import ccall "kirk-irram-api.h" kirk_irram_log     :: KirkFun11
 foreign import ccall "kirk-irram-api.h" kirk_irram_sqrt    :: KirkFun11
-foreign import ccall "kirk-irram-api.h" kirk_irram_root    :: KirkPtr -> CInt -> IO KirkPtr
+foreign import ccall "kirk-irram-api.h" kirk_irram_root    :: KirkRealPtr -> CInt -> IO KirkRealPtr
 foreign import ccall "kirk-irram-api.h" kirk_irram_max     :: KirkFun12
 foreign import ccall "kirk-irram-api.h" kirk_irram_min     :: KirkFun12
 foreign import ccall "kirk-irram-api.h" kirk_irram_mod     :: KirkFun12
