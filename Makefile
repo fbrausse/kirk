@@ -75,16 +75,23 @@ test-hs: Data/Number/Kirk/Irram.o
 endif
 endif
 
+OPT_FLAGS = -O2
+WARN_FLAGS = -Wall -Wextra
+FLAGS = $(OPT_FLAGS) $(WARN_FLAGS) -g
+
 override CC  += -std=c99
 override CXX += -std=c++14
 CPPFLAGS     += -DKIRK_CHECK_BOUND -UKIRK_BOUND_SIZE_GMP
-CFLAGS        = -O2 -Wall -Wextra -pedantic
-CXXFLAGS      = -O2 -Wall -Wextra -pedantic
-HSFLAGS       = -O2 -Wall -Wextra -cpp
+CFLAGS        = $(FLAGS) -pedantic
+CXXFLAGS      = $(FLAGS) -pedantic
+HSFLAGS       = $(FLAGS) -cpp -dynamic
 LDLIBS += -lmpfr -lm
 ARFLAGS = rcs
 
 all: libkirk.a tests
+
+debug: OPT_FLAGS = -O0
+debug: libkirk.a tests
 
 test-irram: test-irram.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
