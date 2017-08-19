@@ -1,10 +1,14 @@
 
 #include <stdlib.h>
+#include <HsFFI.h>
 
-#include "kirk-real-obj.h"
+#ifdef __GLASGOW_HASKELL__
 #include "Data/Number/Kirk_stub.h"
+#endif
 
 #define KIRK_INTERNAL_HS
+
+#include "kirk-real-obj.h"
 
 #undef KIRK_API
 #ifdef KIRK_INTERNAL_HS

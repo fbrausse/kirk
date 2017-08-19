@@ -45,36 +45,6 @@ endif
 IRRAM = $(realpath $(HOME)/iRRAM/installed)
 HMPFR = $(shell $(HS_PKGS_CMD) hmpfr-0.4.3)
 
-ifneq ($(IRRAM),)
-  LIB_OBJS    += \
-	kirk-iRRAM.o \
-	kirk-irram-api.o
-  LIB_HEADERS += \
-	kirk-iRRAM.hh \
-	kirk-irram-api.h
-  CPPFLAGS    += -I$(IRRAM)/include -DKIRK_HAVE_IRRAM
-  CFLAGS      += -pthread
-  CXXFLAGS    += -pthread
-test-irram: LDFLAGS += -pthread -L$(IRRAM)/lib -Wl,-rpath,$(IRRAM)/lib
-test-irram: LDLIBS  += -liRRAM
-tests: test-irram
-endif
-
-ifneq ($(HMPFR),)
-  CPPFLAGS += -DKIRK_HAVE_HMPFR
-  LIB_OBJS += kirk-hs.o
-kirk-hs.o: CPPFLAGS += -I$(HS_LIBDIR)/include
-test-hs: LDFLAGS += -L$(IRRAM)/lib
-test-hs: LDLIBS += -package $(HMPFR)
-tests: test-hs
-ifneq ($(IRRAM),)
-test-hs.o: Data/Number/Kirk/Irram.o
-#test-hs: LDFLAGS += -pthread -L$(IRRAM)/lib -Wl,-rpath,$(IRRAM)/lib
-test-hs: LDLIBS += -liRRAM -lstdc++
-test-hs: Data/Number/Kirk/Irram.o
-endif
-endif
-
 OPT_FLAGS = -O2
 WARN_FLAGS = -Wall -Wextra
 FLAGS = $(OPT_FLAGS) $(WARN_FLAGS) -g
@@ -87,6 +57,38 @@ CXXFLAGS      = $(FLAGS) -pedantic
 HSFLAGS       = $(FLAGS) -cpp -dynamic
 LDLIBS += -lmpfr -lm
 ARFLAGS = rcs
+
+ifneq ($(IRRAM),)
+  LIB_OBJS    += \
+	kirk-iRRAM.o \
+	kirk-irram-api.o
+  LIB_HEADERS += \
+	kirk-iRRAM.hh \
+	kirk-irram-api.h
+  CPPFLAGS    += -I$(IRRAM)/include -DKIRK_HAVE_IRRAM
+  CFLAGS      += -pthread
+  CXXFLAGS    += -pthread
+  HSFLAGS     += -threaded # allow FFI function calls from different OS-threads
+test-irram: LDFLAGS += -pthread -L$(IRRAM)/lib -Wl,-rpath,$(IRRAM)/lib
+test-irram: LDLIBS  += -liRRAM
+tests: test-irram
+endif
+
+ifneq ($(HMPFR),)
+  CPPFLAGS += -DKIRK_HAVE_HMPFR
+  LIB_OBJS += kirk-hs.o Data/Number/Kirk.o
+  LIB_HEADERS += Data/Number/Kirk.hi
+  kirk-hs.o: CPPFLAGS += -I$(HS_LIBDIR)/include
+  ifneq ($(IRRAM),)
+    LIB_OBJS += Data/Number/Kirk/Irram.o
+    LIB_HEADERS += Data/Number/Kirk/Irram.hi
+    test-hs.o: Data/Number/Kirk/Irram.o
+    test-hs: LDFLAGS += -L$(IRRAM)/lib -optl-Wl,-rpath,$(IRRAM)/lib
+    test-hs: LDLIBS  += -liRRAM -lstdc++ -package $(HMPFR)
+    test-hs: Data/Number/Kirk/Irram.o
+    tests: test-hs
+  endif
+endif
 
 all: libkirk.a tests
 
