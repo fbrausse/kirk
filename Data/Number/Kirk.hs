@@ -1,7 +1,16 @@
 
 {-# LANGUAGE ForeignFunctionInterface #-}
 
-module Data.Number.Kirk where
+module Data.Number.Kirk (
+  KirkBoundT(..),
+  KirkApxT(..),
+  KirkSeq0Idx(..),
+  KirkReal,KirkImportReal,approx,
+  KirkFun10,kirk10,
+  KirkFun11,kirk11,
+  KirkFun12,kirk12,
+  KirkPtr,
+) where
 
 import Foreign.Ptr
 import Foreign.ForeignPtr
@@ -17,6 +26,8 @@ import System.IO.Unsafe
 #if KIRK_BOUND_SIZE_GMP-0
 # error no support for generic GMP type
 #endif
+
+type KirkPtr = Ptr KirkRealT
 
 data KirkBoundT = KirkBoundT
   { k_exponent :: Int64
@@ -110,7 +121,8 @@ kirk11 f =
     fp <- makeExportReal p
     withForeignPtr fp f >>= kirk10
 
-kirk12 :: KirkImportReal a => KirkFun12 -> (a -> a -> IO KirkReal)
+kirk12 :: (KirkImportReal a, KirkImportReal b)
+       => KirkFun12 -> (a -> b -> IO KirkReal)
 kirk12 f =
   \p q -> do
     fp <- makeExportReal p

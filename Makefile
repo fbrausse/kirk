@@ -71,6 +71,7 @@ ifneq ($(IRRAM),)
 test-hs.o: Data/Number/Kirk/Irram.o
 #test-hs: LDFLAGS += -pthread -L$(IRRAM)/lib -Wl,-rpath,$(IRRAM)/lib
 test-hs: LDLIBS += -liRRAM -lstdc++
+test-hs: Data/Number/Kirk/Irram.o
 endif
 endif
 

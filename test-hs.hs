@@ -1,20 +1,14 @@
 
 import Data.Number.Kirk --(KirkRealT, KirkReal, KirkSeq0Idx(AbsAcc))
-import Data.Number.Kirk.Irram --(KirkRealT, KirkReal, KirkSeq0Idx(AbsAcc))
-import Foreign.Ptr
-import Foreign.C.Types
-import Foreign.C.String
-import Foreign.Marshal.Utils
+import qualified Data.Number.Kirk.Irram as Irram
 
-foreign import ccall "kirk_test_real" kirk_test_real :: Double -> IO (Ptr KirkRealT)
-
-foreign import ccall "iRRAM_initialize" iRRAM_initialize :: CInt -> Ptr CString -> IO ()
+foreign import ccall "kirk_test_real" kirk_test_real :: Double -> IO KirkPtr
 
 main :: IO ()
 main = do
-  withCString "test-hs" $ \argv0 -> with argv0 $ iRRAM_initialize 0
+  Irram.init
   kr   <- kirk_test_real 123.456 >>= kirk10
-  let kf_sqrt = kirk11 kirk_irram_sqrt :: KirkReal -> IO KirkReal
+  let kf_sqrt = Irram.sqrt
   --fr  <- get_real_ptr r
   --apx <- withForeignPtr fr $ \p -> do_real_apx_abs p $ AbsAcc (-10)
   --apx <- approx (KirkReal fr) $ AbsAcc (-10)
