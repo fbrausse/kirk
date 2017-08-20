@@ -7,7 +7,6 @@ module Data.Number.Kirk (
   KirkSeq0Idx(..),
   KirkReal,KirkImportReal(..),
   KirkReal,KirkImportReal,approx,
-  makeHsReal,
   KirkFun10,kirk10,
   KirkFun11,kirk11,
   KirkFun12,kirk12,
