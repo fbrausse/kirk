@@ -1,11 +1,8 @@
 
-import Data.Int (Int32)
-import Foreign.C.Types (CDouble(..))
+import Data.Int
 import Data.Number.Kirk
+import Data.Number.Kirk.Debug
 import qualified Data.Number.Kirk.Irram as Irram
-
-foreign import ccall "kirk-dyadic-real.h" kirk_test_real :: IO KirkRealPtr
-foreign import ccall "kirk-dyadic-real.h" kirk_dyadic_test_real_d :: CDouble -> IO KirkRealPtr
 
 putRealLn :: KirkReal -> Int32 -> IO ()
 putRealLn x acc = do
@@ -17,10 +14,10 @@ putRealLn x acc = do
 
 main :: IO ()
 main = do
-  two      <- kirk_dyadic_test_real_d 2.0 >>= kirk10
+  two      <- dyadicTestReal_d 2.0
   putRealLn two (-10)
 
-  kr       <- kirk_test_real >>= kirk10 -- 123.456
+  kr       <- dyadicTestReal_d 123.456
 
   Irram.init
 
@@ -32,5 +29,5 @@ main = do
   putRealLn kr' (-10)
   putRealLn kr'' (-10)
 
-  pi       <- Irram.pi
-  putRealLn pi (-10)
+  irram_pi <- Irram.pi
+  putRealLn irram_pi (-10)

@@ -26,6 +26,7 @@ CC_OBJS = \
 
 HS_OBJS = \
 	Data/Number/Kirk.o \
+	Data/Number/Kirk/Debug.o \
 	Data/Number/Kirk/Irram.o \
 	test-hs.o
 
@@ -74,16 +75,16 @@ endif
 
 ifneq ($(HMPFR),)
   CPPFLAGS += -DKIRK_HAVE_HMPFR
-  LIB_OBJS += kirk-hs.o Data/Number/Kirk.o
+  LIB_OBJS += kirk-hs.o Data/Number/Kirk.o Data/Number/Kirk/Debug.o
   LIB_HEADERS += Data/Number/Kirk.hi
   kirk-hs.o: CPPFLAGS += -I$(HS_LIBDIR)/include
   ifneq ($(IRRAM),)
     LIB_OBJS += Data/Number/Kirk/Irram.o
     LIB_HEADERS += Data/Number/Kirk/Irram.hi
-    test-hs.o: Data/Number/Kirk/Irram.o
+    test-hs.o: Data/Number/Kirk/Irram.o Data/Number/Kirk/Debug.o
     test-hs: LDFLAGS += -L$(IRRAM)/lib -optl-Wl,-rpath,$(IRRAM)/lib
     test-hs: LDLIBS  += -liRRAM -lstdc++ -package $(HMPFR)
-    test-hs: Data/Number/Kirk/Irram.o
+    test-hs: Data/Number/Kirk/Irram.o Data/Number/Kirk/Debug.o
     tests: test-hs
   endif
 endif

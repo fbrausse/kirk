@@ -13,14 +13,14 @@ module Data.Number.Kirk (
 ) where
 
 import Foreign.Ptr
-import Foreign.ForeignPtr
-import Data.Int
-import Data.Word
-import Foreign.Storable
-import Data.Number.MPFR
+import Foreign.ForeignPtr (ForeignPtr,newForeignPtr,newForeignPtr_,withForeignPtr)
+import Data.Int (Int32,Int64)
+import Data.Word (Word32,Word64)
+import Foreign.Storable (Storable(..))
+import Data.Number.MPFR (MPFR)
 import Data.Number.MPFR.FFIhelper (peekP)
 import Data.Number.MPFR.Instances.Near ()
-import Foreign.Marshal.Utils
+import Foreign.Marshal.Utils (with)
 
 #if KIRK_BOUND_SIZE_GMP-0
 # error no support for generic GMP type
@@ -29,8 +29,8 @@ import Foreign.Marshal.Utils
 type KirkRealPtr = Ptr KirkRealT
 
 data KirkBoundT = KirkBoundT
-  { k_exponent :: Int64
-  , k_mantissa :: Word64
+  { exponent :: Int64
+  , mantissa :: Word64
   }
 
 data KirkApxT = KirkApxT
