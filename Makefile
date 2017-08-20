@@ -103,6 +103,7 @@ test-hs.o: Data/Number/Kirk.o
 
 kirk-hs.o: Data/Number/Kirk.o
 Data/Number/Kirk/Irram.o: Data/Number/Kirk.o
+Data/Number/Kirk/Debug.o: Data/Number/Kirk.o
 
 $(TESTS): libkirk.a
 
