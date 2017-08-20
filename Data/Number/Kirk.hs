@@ -153,10 +153,10 @@ instance KirkImportReal KirkReal where
   approx (KirkReal real) idx =
     withForeignPtr real $ \r ->
       with (KirkApxT (KirkBoundT 0 0) 0) $ \p -> do
-        kirk_apx_init p
+        --kirk_apx_init p
         do_real_apx r p idx
         q <- peek p
-        kirk_apx_fini p
+        --kirk_apx_fini p
         return q
 
 class KirkRealObj a where
