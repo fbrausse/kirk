@@ -39,16 +39,16 @@ TESTS = \
 	test-hs \
 	logmap
 
-HSC = ghc
+HSC = stack ghc --
 
-HS_PKGS_CMD = $(HSC)-pkg --simple-output list
+HS_PKGS_CMD = stack exec ghc-pkg -- --simple-output list
 HS_LIBDIR = $(shell $(HSC) --print-libdir)
 
-IRRAM = $(realpath $(HOME)/iRRAM/installed)
+IRRAM = $(realpath ../iRRAM/installed)
 HMPFR = $(shell $(HS_PKGS_CMD) hmpfr-0.4.3)
 
 OPT_FLAGS = -O2
-WARN_FLAGS = -Wall -Wextra
+WARN_FLAGS = -Wall
 FLAGS = $(OPT_FLAGS) $(WARN_FLAGS) -g
 
 override CC  += -std=c99
@@ -86,7 +86,7 @@ ifneq ($(HMPFR),)
     LIB_HEADERS += Data/Number/Kirk/Irram.hi
     test-hs.o logmap.o: Data/Number/Kirk.o Data/Number/Kirk/Irram.o Data/Number/Kirk/Debug.o
     test-hs logmap: LDFLAGS += -L$(IRRAM)/lib -optl-Wl,-rpath,$(IRRAM)/lib
-    test-hs logmap: LDLIBS  += -liRRAM -lstdc++ -package $(HMPFR)
+    test-hs logmap: LDLIBS  += -liRRAM -lstdc++ -package $(HMPFR) -package aern2-real
     test-hs logmap: Data/Number/Kirk.o Data/Number/Kirk/Irram.o Data/Number/Kirk/Debug.o
     tests: test-hs logmap
   endif
