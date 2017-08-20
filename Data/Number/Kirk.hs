@@ -21,7 +21,6 @@ import Data.Number.MPFR
 import Data.Number.MPFR.FFIhelper (peekP)
 import Data.Number.MPFR.Instances.Near ()
 import Foreign.Marshal.Utils
-import System.IO.Unsafe
 
 #if KIRK_BOUND_SIZE_GMP-0
 # error no support for generic GMP type
@@ -34,6 +33,23 @@ data KirkBoundT = KirkBoundT
   , k_mantissa :: Word64
   }
 
+data KirkApxT = KirkApxT
+  { radius :: KirkBoundT
+  , center :: MPFR
+  }
+
+data KirkSeq0Idx = AbsAcc Int32
+                 | Effort Word32
+
+data KirkRealT {-= KirkRealT
+  { clazz :: Ptr KirkRealClassT
+  }-}
+
+data KirkReal = KirkReal (ForeignPtr KirkRealT)
+
+class KirkImportReal a where
+  approx :: a -> KirkSeq0Idx -> IO KirkApxT
+
 instance Storable KirkBoundT where
   sizeOf _    = 16
   alignment _ =  8
@@ -44,11 +60,6 @@ instance Storable KirkBoundT where
   poke ptr (KirkBoundT e m) = do
     pokeByteOff ptr 0 e
     pokeByteOff ptr 8 m
-
-data KirkApxT = KirkApxT
-  { radius :: KirkBoundT
-  , center :: MPFR
-  }
 
 instance Storable KirkApxT where
   sizeOf _    = 48
@@ -64,25 +75,20 @@ instance Storable KirkApxT where
     pokeByteOff ptr 16 c
 
 foreign import ccall "kirk_real_ref"     kirk_real_ref     :: KirkRealPtr -> IO KirkRealPtr
-foreign import ccall "kirk_real_unref"   kirk_real_unref   :: KirkRealPtr -> IO ()
+--foreign import ccall "kirk_real_unref"   kirk_real_unref   :: KirkRealPtr -> IO ()
 foreign import ccall "kirk_real_apx_abs" kirk_real_apx_abs :: KirkRealPtr -> Ptr KirkApxT -> Int32 -> IO ()
 foreign import ccall "kirk_real_apx_eff" kirk_real_apx_eff :: KirkRealPtr -> Ptr KirkApxT -> Word32 -> IO ()
 
 foreign import ccall "kirk_apx_init"     kirk_apx_init     :: Ptr KirkApxT -> IO ()
 --foreign import ccall "kirk_apx_init2"    kirk_apx_init2    :: Ptr KirkApxT -> mpfr_prec_t -> IO ()
 foreign import ccall "kirk_apx_cpy"      kirk_apx_cpy      :: Ptr KirkApxT -> Ptr KirkApxT -> IO ()
+--foreign import ccall "kirk_apx_set"      kirk_apx_set      :: Ptr KirkApxT -> Ptr KirkApxT -> IO ()
 foreign import ccall "kirk_apx_fini"     kirk_apx_fini     :: Ptr KirkApxT -> IO ()
 
-foreign import ccall "kirk_real_sv_create" kirk_real_sv_create :: KirkRealPtr -> IO KirkRealPtr
+--foreign import ccall "kirk_real_sv_create" kirk_real_sv_create :: KirkRealPtr -> IO KirkRealPtr
 
-foreign import ccall "&kirk_apx_fini"    p_kirk_apx_fini   :: FunPtr (Ptr KirkApxT -> IO ())
+--foreign import ccall "&kirk_apx_fini"    p_kirk_apx_fini   :: FunPtr (Ptr KirkApxT -> IO ())
 foreign import ccall "&kirk_real_unref"  p_kirk_real_unref :: FunPtr (KirkRealPtr -> IO ())
-
-data KirkSeq0Idx = AbsAcc Int32
-                 | Effort Word32
-
-class KirkImportReal a where
-  approx :: a -> KirkSeq0Idx -> IO KirkApxT
 
 foreign import ccall "kirk_real_hs_create" kirk_real_hs_create
   :: FunPtr (Ptr KirkApxT -> Int32 -> IO ())
@@ -102,18 +108,17 @@ copy_apx :: Ptr KirkApxT -> KirkApxT -> IO ()
 copy_apx p_tgt src = with src $ kirk_apx_cpy p_tgt
 
 makeExportReal :: KirkImportReal hr => hr -> IO (ForeignPtr KirkRealT)
-  -- create
 makeExportReal r = do
   acc_f <- wrap_apx_abs $ \ptr acc -> approx r (AbsAcc acc) >>= copy_apx ptr
   eff_f <- wrap_apx_eff $ \ptr eff -> approx r (Effort eff) >>= copy_apx ptr
-  kirk_real_hs_create acc_f eff_f >>= ref >>= newForeignPtr unref
+  kirk_real_hs_create acc_f eff_f >>= ref_real_ptr
 
 type KirkFun10 = KirkRealPtr
 type KirkFun11 = KirkRealPtr -> IO KirkRealPtr
 type KirkFun12 = KirkRealPtr -> KirkRealPtr -> IO KirkRealPtr
 
 kirk10 :: KirkFun10 -> IO KirkReal
-kirk10 r = ref r >>= newForeignPtr unref >>= return . KirkReal
+kirk10 r = ref_real_ptr r >>= return . KirkReal
 
 kirk11 :: KirkImportReal a => KirkFun11 -> (a -> IO KirkReal)
 kirk11 f =
@@ -129,6 +134,17 @@ kirk12 f =
     withForeignPtr fp $ \gp -> kirk11 (f gp) q
 
 
+{-data KirkRealClassT = KirkRealClassT
+  { ref   :: FunPtr (Ptr KirkRealT -> IO (Ptr KirkRealT))
+  , unref :: FunPtr (Ptr KirkRealT -> IO ())
+  , apx_abs :: FunPtr (Ptr KirkRealT -> Ptr KirkApxT -> Int32 -> IO ())
+  , apx_eff :: FunPtr (Ptr KirkRealT -> Ptr KirkApxT -> Word32 -> IO ())
+  }-}
+
+do_real_apx :: Ptr KirkRealT -> Ptr KirkApxT -> KirkSeq0Idx -> IO ()
+do_real_apx real apx (AbsAcc acc) = kirk_real_apx_abs real apx acc
+do_real_apx real apx (Effort eff) = kirk_real_apx_eff real apx eff
+
 instance KirkImportReal KirkReal where
   approx (KirkReal real) idx =
     withForeignPtr real $ \r ->
@@ -139,28 +155,27 @@ instance KirkImportReal KirkReal where
         kirk_apx_fini p
         return q
 
-data KirkReal = KirkReal (ForeignPtr KirkRealT)
-
-do_real_apx :: Ptr KirkRealT -> Ptr KirkApxT -> KirkSeq0Idx -> IO ()
-do_real_apx real apx (AbsAcc acc) = kirk_real_apx_abs real apx acc
-do_real_apx real apx (Effort eff) = kirk_real_apx_eff real apx eff
-
-class (KirkImportReal a) => KirkImportRealSV a where
-  approx_sv :: a -> KirkSeq0Idx -> KirkApxT
-
-class KirkImportRealObj a where
+class KirkRealObj a where
   ref :: Ptr a -> IO (Ptr a)
   unref :: FunPtr (Ptr a -> IO ())
 
-instance KirkImportRealObj KirkRealT where
+ref_real_ptr :: KirkRealObj a => Ptr a -> IO (ForeignPtr a)
+ref_real_ptr r = ref r >>= newForeignPtr unref
+
+instance KirkRealObj KirkRealT where
   ref = kirk_real_ref
   unref = p_kirk_real_unref
 
-get_real_ptr :: KirkImportRealObj a => Ptr a -> IO (ForeignPtr a)
-get_real_ptr r = ref r >>= newForeignPtr unref
+{-
+-- implemented by kirk_hs_real_t derived from kirk_real_obj_t
+-- -> ref/unref taken care of
+-- -> apx_abs/apx_eff/destroy left
+class (KirkImportReal a) => KirkExportReal a where
+  finalize :: a -> IO ()
+-}
 
-newtype KirkRealSV = KirkRealSV KirkReal
-
+{- functional approximations -}
+{-
 instance KirkImportReal KirkRealSV where
   approx = approx
 
@@ -168,19 +183,8 @@ instance KirkImportRealSV KirkRealSV where
 --  approx_sv (KirkRealSV fptr) idx = unsafePerformIO $ approx (KirkReal fptr) idx
   approx_sv r i = unsafePerformIO $ approx r i
 
--- implemented by kirk_hs_real_t derived from kirk_real_obj_t
--- -> ref/unref taken care of
--- -> apx_abs/apx_eff/destroy left
-class (KirkImportReal a) => KirkExportReal a where
-  finalize :: a -> IO ()
+newtype KirkRealSV = KirkRealSV KirkReal
 
-{-data KirkRealClassT = KirkRealClassT
-  { ref   :: FunPtr (Ptr KirkRealT -> IO (Ptr KirkRealT))
-  , unref :: FunPtr (Ptr KirkRealT -> IO ())
-  , apx_abs :: FunPtr (Ptr KirkRealT -> Ptr KirkApxT -> Int32 -> IO ())
-  , apx_eff :: FunPtr (Ptr KirkRealT -> Ptr KirkApxT -> Word32 -> IO ())
-  }-}
-
-data KirkRealT {-= KirkRealT
-  { clazz :: Ptr KirkRealClassT
-  }-}
+class (KirkImportReal a) => KirkImportRealSV a where
+  approx_sv :: a -> KirkSeq0Idx -> KirkApxT
+-}

@@ -1,5 +1,5 @@
 
-import Data.Number.Kirk --(KirkRealT, KirkReal, KirkSeq0Idx(AbsAcc))
+import Data.Number.Kirk
 import qualified Data.Number.Kirk.Irram as Irram
 
 foreign import ccall "kirk_test_real" kirk_test_real :: Double -> IO KirkRealPtr

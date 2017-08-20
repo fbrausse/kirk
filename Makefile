@@ -37,10 +37,8 @@ TESTS = \
 
 HSC = ghc
 
-ifeq ($(HSC),ghc)
-  HS_PKGS_CMD = ghc-pkg --simple-output list
-  HS_LIBDIR = $(shell ghc --print-libdir)
-endif
+HS_PKGS_CMD = $(HSC)-pkg --simple-output list
+HS_LIBDIR = $(shell $(HSC) --print-libdir)
 
 IRRAM = $(realpath $(HOME)/iRRAM/installed)
 HMPFR = $(shell $(HS_PKGS_CMD) hmpfr-0.4.3)
