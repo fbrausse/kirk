@@ -176,7 +176,7 @@ struct kirk::irram::machine : std::enable_shared_from_this<machine> {
 	void computation_prepare(std::vector<iRRAM::REAL> &in);
 	void computation_finished(const std::vector<iRRAM::REAL> &out);
 
-	static int compute(std::weak_ptr<machine> wp, func_type f);
+	static void compute(std::weak_ptr<machine> wp, func_type f);
 
 	void exec(func_type f);
 	void run(real_out_sock &os, ::kirk_abs_t a);
@@ -298,7 +298,7 @@ void machine::computation_finished(const vector<REAL> &out)
 	});
 }
 
-int machine::compute(std::weak_ptr<machine> wp, func_type f)
+void machine::compute(std::weak_ptr<machine> wp, func_type f)
 {
 	//KIRK_MACHINE_DEBUG(" iterating w/ effort %u...\n",
 	//		    (effort_t)iRRAM::actual_stack().prec_step);
@@ -309,7 +309,7 @@ int machine::compute(std::weak_ptr<machine> wp, func_type f)
 		out.resize(p->outputs.size());
 		p->computation_prepare(in);
 	} else
-		return 0;
+		return;
 
 	/*
 	std::vector<BaseSock_t> locked_outputs(outputs.size());
@@ -321,8 +321,6 @@ int machine::compute(std::weak_ptr<machine> wp, func_type f)
 		p->computation_finished(out);
 		iRRAM::state->infinite = !p->cancelled;
 	}
-
-	return 0;
 }
 
 void machine::exec(std::function<void(const REAL *,REAL *)> f)
