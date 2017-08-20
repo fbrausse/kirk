@@ -31,3 +31,6 @@ main = do
   putRealLn kr_sqrt (-10)
   putRealLn kr' (-10)
   putRealLn kr'' (-10)
+
+  pi       <- Irram.pi
+  putRealLn pi (-10)

@@ -8,6 +8,7 @@
 module Data.Number.Kirk.Irram (
   Data.Number.Kirk.Irram.sqrt, pow, pow_n,
   Data.Number.Kirk.Irram.init,
+  Data.Number.Kirk.Irram.pi,
 ) where
 
 import Data.Number.Kirk
@@ -22,7 +23,7 @@ import Foreign.Marshal.Utils (with)
 --foreign import ccall "kirk-irram-api.h" kirk_irram_mul     :: KirkFun12
 --foreign import ccall "kirk-irram-api.h" kirk_irram_inv     :: KirkFun11
 --foreign import ccall "kirk-irram-api.h" kirk_irram_div     :: KirkFun12
---foreign import ccall "kirk-irram-api.h" kirk_irram_pi      :: KirkFun10
+foreign import ccall "kirk-irram-api.h" kirk_irram_pi      :: KirkFun10
 --foreign import ccall "kirk-irram-api.h" kirk_irram_e       :: KirkFun10
 --foreign import ccall "kirk-irram-api.h" kirk_irram_ln2     :: KirkFun10
 --foreign import ccall "kirk-irram-api.h" kirk_irram_exp     :: KirkFun11
@@ -63,6 +64,9 @@ foreign import ccall "iRRAM_initialize" iRRAM_initialize :: CInt -> Ptr CString 
 
 init :: IO ()
 init = withCString "kirk-haskell" $ \argv0 -> with argv0 $ iRRAM_initialize 1
+
+pi :: IO KirkReal
+pi = kirk10 kirk_irram_pi
 
 sqrt :: (KirkImportReal a) => a -> IO KirkReal
 sqrt = kirk11 kirk_irram_sqrt
