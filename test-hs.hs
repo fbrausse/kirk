@@ -12,8 +12,13 @@ main = do
   --apx <- withForeignPtr fr $ \p -> do_real_apx_abs p $ AbsAcc (-10)
   --apx <- approx (KirkReal fr) $ AbsAcc (-10)
   kr_sqrt  <- Irram.sqrt kr
+  kr'      <- Irram.pow_n kr_sqrt 2
   apx      <- approx kr $ AbsAcc (-10)
   apx_sqrt <- approx kr_sqrt $ AbsAcc (-10)
-  putStrLn $ "exponent = " ++ (show $ k_exponent $ radius apx)
-  putStrLn $ "mantissa = " ++ (show $ k_mantissa $ radius apx)
-  putStrLn $ "center = " ++ (show $ center apx)
+  apx'     <- approx kr' $ AbsAcc (-10)
+--  putStrLn $ "exponent = " ++ (show $ k_exponent $ radius apx)
+--  putStrLn $ "mantissa = " ++ (show $ k_mantissa $ radius apx)
+--  putStrLn $ "center = " ++ (show $ center apx)
+  putStrLn $ show apx
+  putStrLn $ show apx_sqrt
+  putStrLn $ show apx'

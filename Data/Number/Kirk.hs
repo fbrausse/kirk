@@ -50,6 +50,10 @@ data KirkReal = KirkReal (ForeignPtr KirkRealT)
 class KirkImportReal a where
   approx :: a -> KirkSeq0Idx -> IO KirkApxT
 
+instance Show KirkApxT where
+  show (KirkApxT (KirkBoundT e m) c) =
+    "[" ++ show c ++ " +/- " ++ show m ++ "*2^(" ++ show e ++ ")]"
+
 instance Storable KirkBoundT where
   sizeOf _    = 16
   alignment _ =  8
