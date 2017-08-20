@@ -22,19 +22,22 @@ C_OBJS = \
 
 CC_OBJS = \
 	kirk-iRRAM.o \
-	kirk-irram-api.o
+	kirk-irram-api.o \
+	logmap-irram.o
 
 HS_OBJS = \
 	Data/Number/Kirk.o \
 	Data/Number/Kirk/Debug.o \
 	Data/Number/Kirk/Irram.o \
-	test-hs.o
+	test-hs.o \
+	logmap.o
 
 HI_OBJS = $(HS_OBJS:.o=.hi)
 
 TESTS = \
 	test-irram \
-	test-hs
+	test-hs \
+	logmap
 
 HSC = ghc
 
@@ -81,11 +84,11 @@ ifneq ($(HMPFR),)
   ifneq ($(IRRAM),)
     LIB_OBJS += Data/Number/Kirk/Irram.o
     LIB_HEADERS += Data/Number/Kirk/Irram.hi
-    test-hs.o: Data/Number/Kirk.o Data/Number/Kirk/Irram.o Data/Number/Kirk/Debug.o
-    test-hs: LDFLAGS += -L$(IRRAM)/lib -optl-Wl,-rpath,$(IRRAM)/lib
-    test-hs: LDLIBS  += -liRRAM -lstdc++ -package $(HMPFR)
-    test-hs: Data/Number/Kirk.o Data/Number/Kirk/Irram.o Data/Number/Kirk/Debug.o
-    tests: test-hs
+    test-hs.o logmap.o: Data/Number/Kirk.o Data/Number/Kirk/Irram.o Data/Number/Kirk/Debug.o
+    test-hs logmap: LDFLAGS += -L$(IRRAM)/lib -optl-Wl,-rpath,$(IRRAM)/lib
+    test-hs logmap: LDLIBS  += -liRRAM -lstdc++ -package $(HMPFR)
+    test-hs logmap: Data/Number/Kirk.o Data/Number/Kirk/Irram.o Data/Number/Kirk/Debug.o
+    tests: test-hs logmap
   endif
 endif
 
@@ -98,6 +101,9 @@ test-irram: test-irram.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 test-hs: test-hs.o
+	$(HSC) $(HSFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+logmap: logmap.o logmap-irram.o
 	$(HSC) $(HSFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 kirk-hs.o: Data/Number/Kirk.o
