@@ -5,7 +5,7 @@ module Data.Number.Kirk (
   KirkBoundT(..),
   KirkApxT(..),
   KirkSeq0Idx(..),
-  KirkReal,KirkImportReal,approx,
+  KirkReal,KirkImportReal(..),
   KirkFun10,kirk10,
   KirkFun11,kirk11,
   KirkFun12,kirk12,
@@ -52,7 +52,7 @@ class KirkImportReal a where
 
 instance Show KirkApxT where
   show (KirkApxT (KirkBoundT e m) c) =
-    "[" ++ show c ++ " +/- " ++ show m ++ "*2^(" ++ show e ++ ")]"
+    "[" ++ show c ++ " +/- " ++ show m ++ "*2^(" ++ show (e-64) ++ ")]"
 
 instance Storable KirkBoundT where
   sizeOf _    = 16
