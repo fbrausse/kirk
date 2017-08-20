@@ -5,44 +5,7 @@ import Data.Int
 import Data.Number.Kirk
 import Data.Number.Kirk.Debug
 import qualified Data.Number.Kirk.Irram as Irram
-
--------------------------------------------------------------------
--- AERN2 support code
-
-import qualified MixedTypesNumPrelude as MTN
-import System.IO.Unsafe
-import Data.Convertible
-import AERN2.MP.Float
-import AERN2.MP.Dyadic
-import AERN2.Real
-
-instance KirkImportReal CauchyReal where
-  approx r (Effort eff) = approx r (AbsAcc (convert eff))
-  approx r (AbsAcc acc) = 
-    return $ KirkApxT rad c
-    where
-    b = r ? (bitsS $ negate $ toInteger acc)
-    c = mpFloat $ AERN2.Real.centre b
-    radF = mpFloat $ AERN2.Real.radius b
-    (m,e) = decodeFloat radF
-    rad = KirkBoundT (convert e) (convert m)
-
-toAERN2CR :: KirkReal -> CauchyReal
-toAERN2CR r =
-  newCR "kirk" [] makeQ
-    where
-    makeQ (_me, _src) (AccuracySG acS _acG) =
-      updateRadius (MTN.+ (errorBound radF)) (mpBall (dyadic c))
-      where
-      acc = convert (- (fromAccuracy acS))
-      (KirkApxT rad c) = unsafePerformIO (approx r (AbsAcc acc))
-      (KirkBoundT e m) = rad
-      radF 
-          | e >= 0 = encodeFloat (convert m) (convert e) :: MPFloat
-          | otherwise = encodeFloat (convert m * 2^(-e)) 0
-
--- end of AERN2 support code
--------------------------------------------------------------------
+import qualified Data.Number.Kirk.AERN2 as AERN2
 
 putRealLn :: (KirkImportReal r) => String -> r -> Int32 -> IO ()
 putRealLn s x acc = do
@@ -59,20 +22,20 @@ main = do
 -- using AERN2 CauchyReal
 main2 :: IO ()
 main2 = do
-  let twoCR = real (2::Integer)
+  let twoCR = AERN2.real (2::Integer)
   putRealLn "two         : " twoCR (-10)
-  let thirdCR = real (1/3::Rational)
+  let thirdCR = AERN2.real (1/3::Rational)
   putRealLn "third       : " thirdCR (-10)
   
-  let krCR = real (123.456::Rational)
+  let krCR = AERN2.real (123.456::Rational)
   
   Irram.init
 
   kr_sqrt  <- Irram.sqrt krCR
-  let kr_sqrtCR = toAERN2CR kr_sqrt
+  let kr_sqrtCR = AERN2.toCR kr_sqrt
 
   kr'      <- Irram.pow_n kr_sqrt 2
-  kr''     <- Irram.pow   kr_sqrtCR twoCR
+--   kr''     <- Irram.pow   kr_sqrtCR twoCR
 -- the above line leads to errors such as:
 {-
 test-hs: DataziNumberziKirk_d2r2: interrupted
@@ -93,7 +56,7 @@ Aborted (core dumped)
 -}
 
   irram_pi <- Irram.pi
-  let irram_piCR = toAERN2CR irram_pi
+  let irram_piCR = AERN2.toCR irram_pi
   
   putRealLn "pi          : " irram_piCR (-10)
   
