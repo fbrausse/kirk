@@ -2,5 +2,6 @@
 *.hi
 /test-irram
 /test-hs
+/logmap
 /libkirk.a
 /Data/Number/Kirk_stub.h
