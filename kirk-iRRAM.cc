@@ -178,7 +178,7 @@ struct kirk::irram::machine : std::enable_shared_from_this<machine> {
 
 	static void compute(std::weak_ptr<machine> wp, func_type f);
 
-	void exec(func_type f);
+	void exec(func_type f, const char *name);
 	void run(real_out_sock &os, ::kirk_abs_t a);
 	void run(real_out_sock &os, ::kirk_eff_t e);
 
@@ -188,10 +188,10 @@ struct kirk::irram::machine : std::enable_shared_from_this<machine> {
 
 machine_t kirk::irram::eval(::kirk_real_t *const *in, size_t n_in,
                             ::kirk_real_t **out     , size_t n_out,
-                            func_type f)
+                            func_type f, const char *name)
 {
 	machine_t p = std::make_shared<machine>(in, n_in, n_out);
-	p->exec(move(f));
+	p->exec(move(f), name);
 	for (size_t i=0; i<n_out; i++)
 		out[i] = new out_real(p, i);
 	return p;
@@ -323,15 +323,18 @@ void machine::compute(std::weak_ptr<machine> wp, func_type f)
 	}
 }
 
-void machine::exec(std::function<void(const REAL *,REAL *)> f)
+void machine::exec(std::function<void(const REAL *,REAL *)> f, const char *name)
 {
 	std::weak_ptr<machine> wp = shared_from_this();
-	std::thread([wp,f]{
+	std::thread t([wp,f]{
 //		try {
 			iRRAM::exec(compute, wp, f);
 //		} catch (const char *) {
 //		}
-	}).detach();
+	});
+	if (name)
+		pthread_setname_np(t.native_handle(), name);
+	t.detach();
 }
 
 void machine::run(real_out_sock &os, ::kirk_abs_t a)
