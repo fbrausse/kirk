@@ -336,10 +336,10 @@ void machine::exec(std::function<void(const REAL *,REAL *)> f)
 
 void machine::run(real_out_sock &os, ::kirk_abs_t a)
 {
+	std::unique_lock<decltype(mtx_outputs)> lock(mtx_outputs);
 	bool more = a < os.req_accuracy;
 	if (more)
 		os.req_accuracy = a;
-	std::unique_lock<decltype(mtx_outputs)> lock(mtx_outputs);
 	if ((more_accuracy_requested |= more))
 		output_requested.notify_one();
 	//KIRK_MACHINE_DEBUG("::run_abs(%u)\n", a);
