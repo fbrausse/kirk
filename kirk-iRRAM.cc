@@ -418,8 +418,8 @@ void out_real::request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const
 {
 	real_out_sock &os = proc->outputs[out_idx];
 	//KIRK_SOCK_DEBUG("::get w/ effort %u\n", e);
-	std::shared_lock<decltype(os.mtx)> lock(os.mtx);
 	proc->run(os, a);
+	std::shared_lock<decltype(os.mtx)> lock(os.mtx);
 	os.cond.wait(lock, [&]{return a >= os.accuracy;});
 	kirk_apx_set(apx, os.apx.center, &os.apx.radius);
 }
