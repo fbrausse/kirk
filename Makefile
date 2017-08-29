@@ -46,6 +46,7 @@ HS_LIBDIR = $(shell $(HSC) --print-libdir)
 
 IRRAM = $(realpath $(HOME)/iRRAM/installed)
 HMPFR = $(shell $(HS_PKGS_CMD) hmpfr-0.4.3)
+ROUNDED = $(shell $(HS_PKGS_CMD) rounded-0.1)
 
 OPT_FLAGS = -O2
 WARN_FLAGS = -Wall -Wextra
@@ -76,8 +77,15 @@ test-irram: LDLIBS  += -liRRAM
 tests: test-irram
 endif
 
-ifneq ($(HMPFR),)
+ifneq ($(ROUNDED),)
+  CPPFLAGS += -DKIRK_HAVE_ROUNDED
+  HS_MPFR   = $(ROUNDED)
+else ifneq ($(HMPFR),)
   CPPFLAGS += -DKIRK_HAVE_HMPFR
+  HS_MPFR   = $(HMPFR)
+endif
+
+ifneq ($(HS_MPFR),)
   LIB_OBJS += kirk-hs.o Data/Number/Kirk.o Data/Number/Kirk/Debug.o
   LIB_HEADERS += Data/Number/Kirk.hi
   kirk-hs.o: CPPFLAGS += -I$(HS_LIBDIR)/include
@@ -86,7 +94,7 @@ ifneq ($(HMPFR),)
     LIB_HEADERS += Data/Number/Kirk/Irram.hi
     test-hs.o logmap.o: Data/Number/Kirk.o Data/Number/Kirk/Irram.o Data/Number/Kirk/Debug.o
     test-hs logmap: LDFLAGS += -L$(IRRAM)/lib -optl-Wl,-rpath,$(IRRAM)/lib
-    test-hs logmap: LDLIBS  += -liRRAM -lstdc++ -package $(HMPFR)
+    test-hs logmap: LDLIBS  += -liRRAM -lstdc++ -package $(HS_MPFR)
     test-hs logmap: Data/Number/Kirk.o Data/Number/Kirk/Irram.o Data/Number/Kirk/Debug.o
     tests: test-hs logmap
   endif
