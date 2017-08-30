@@ -56,7 +56,7 @@ override CXX += -std=c++14
 CPPFLAGS     += -DKIRK_CHECK_BOUND -UKIRK_BOUND_SIZE_GMP
 CFLAGS        = $(FLAGS) -pedantic
 CXXFLAGS      = $(FLAGS) -pedantic
-HSFLAGS       = $(FLAGS) -cpp -dynamic
+HSFLAGS       = $(FLAGS) -cpp -dynamic -fno-full-laziness
 LDLIBS += -lmpfr -lm
 ARFLAGS = rcs
 
