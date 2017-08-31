@@ -17,10 +17,22 @@ import Foreign.ForeignPtr (ForeignPtr,newForeignPtr,newForeignPtr_,withForeignPt
 import Data.Int (Int32,Int64)
 import Data.Word (Word32,Word64)
 import Foreign.Storable (Storable(..))
-import Data.Number.MPFR (MPFR)
+import Foreign.Marshal.Utils (with)
+
+#if defined(KIRK_HAVE_HMPFR)
+
+import qualified Data.Number.MPFR (MPFR)
 import Data.Number.MPFR.FFIhelper (peekP)
 import Data.Number.MPFR.Instances.Near ()
-import Foreign.Marshal.Utils (with)
+type KirkMPFR = Data.Number.MPFR
+
+#elif defined(KIRK_HAVE_ROUNDED)
+
+import qualified Numeric.MPFR.Types (MPFR(..))
+
+type KirkMPFR = Numeric.MPFR.Types.MPFR
+
+#endif
 
 #if KIRK_BOUND_SIZE_GMP-0
 # error no support for generic GMP type
@@ -35,7 +47,7 @@ data KirkBoundT = KirkBoundT
 
 data KirkApxT = KirkApxT
   { radius :: KirkBoundT
-  , center :: MPFR
+  , center :: KirkMPFR
   }
 
 data KirkSeq0Idx = AbsAcc Int32
