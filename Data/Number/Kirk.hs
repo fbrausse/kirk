@@ -1,6 +1,10 @@
 
 {-# LANGUAGE ForeignFunctionInterface #-}
 
+#if KIRK_BOUND_SIZE_GMP-0
+# error no support for generic GMP type
+#endif
+
 module Data.Number.Kirk (
   KirkBoundT(..),
   KirkApxT(..),
@@ -24,18 +28,63 @@ import Foreign.Marshal.Utils (with)
 import qualified Data.Number.MPFR (MPFR)
 import Data.Number.MPFR.FFIhelper (peekP)
 import Data.Number.MPFR.Instances.Near ()
-type KirkMPFR = Data.Number.MPFR
+type KirkMPFR = Data.Number.MPFR.MPFR
+
+instance Storable KirkApxT where
+  sizeOf _    = 48
+  alignment _ =  8
+  peek ptr    = do
+    r        <- peekByteOff ptr 0
+    p_limbs  <- peekByteOff ptr 40
+    fp_limbs <- newForeignPtr_ p_limbs
+    c        <- peekP (ptr `plusPtr` 16) fp_limbs
+    return (KirkApxT r c)
+  poke ptr (KirkApxT r c) = do
+    pokeByteOff ptr 0 r
+    pokeByteOff ptr 16 c
+
+instance KirkImportReal KirkReal where
+  approx (KirkReal real) idx =
+    withForeignPtr real $ \r ->
+      with (KirkApxT (KirkBoundT 0 0) 0) $ \p -> do
+{- TODO:
+   this assumes p points to a kirk_apx_t that was initialized the same way
+   kirk_apx_init would have -}
+        do_real_apx r p idx
+        q <- peek p
+        return q
 
 #elif defined(KIRK_HAVE_ROUNDED)
 
 import qualified Numeric.MPFR.Types (MPFR(..))
+import qualified Numeric.RoundedSimple (Rounded(..))
 
 type KirkMPFR = Numeric.MPFR.Types.MPFR
 
-#endif
+instance Storable KirkApxT where
+  sizeOf _    = 48
+  alignment _ =  8
+  peek ptr    = do
+    r        <- peekByteOff ptr 0
+    c        <- peekByteOff ptr 16
+    return (KirkApxT r c)
+  poke ptr (KirkApxT r c) = do
+    pokeByteOff ptr 0 r
+    pokeByteOff ptr 16 c
 
-#if KIRK_BOUND_SIZE_GMP-0
-# error no support for generic GMP type
+foreign import ccall "kirk_apx_init"     kirk_apx_init     :: Ptr KirkApxT -> IO ()
+foreign import ccall "kirk_apx_fini"     kirk_apx_fini     :: Ptr KirkApxT -> IO ()
+
+instance KirkImportReal KirkReal where
+  approx (KirkReal real) idx =
+    withForeignPtr real $ \r ->
+      with (KirkApxT (KirkBoundT 0 0) Numeric.MPFR.Types.MPFR { Numeric.MPFR.Types.mpfrPrec = 0, Numeric.MPFR.Types.mpfrSign = 0, Numeric.MPFR.Types.mpfrExp = 0, Numeric.MPFR.Types.mpfrD = nullPtr } ) $ \p -> do
+        kirk_apx_init p
+        do_real_apx r p idx
+        q <- peek p -- asByteArray d' (precBytes p') $ \l' -> return (Just (Rounded p' s' e' l'), a)
+        kirk_apx_fini p
+        return q
+
 #endif
 
 type KirkRealPtr = Ptr KirkRealT
@@ -77,19 +126,6 @@ instance Storable KirkBoundT where
     pokeByteOff ptr 0 e
     pokeByteOff ptr 8 m
 
-instance Storable KirkApxT where
-  sizeOf _    = 48
-  alignment _ =  8
-  peek ptr    = do
-    r        <- peekByteOff ptr 0
-    p_limbs  <- peekByteOff ptr 40
-    fp_limbs <- newForeignPtr_ p_limbs
-    c        <- peekP (ptr `plusPtr` 16) fp_limbs
-    return (KirkApxT r c)
-  poke ptr (KirkApxT r c) = do
-    pokeByteOff ptr 0 r
-    pokeByteOff ptr 16 c
-
 class KirkRealObj a where
   ref :: Ptr a -> IO (Ptr a)
   unref :: FunPtr (Ptr a -> IO ())
@@ -97,11 +133,9 @@ class KirkRealObj a where
 ref_real_ptr :: KirkRealObj a => Ptr a -> IO (ForeignPtr a)
 ref_real_ptr r = ref r >>= newForeignPtr unref
 
---foreign import ccall "kirk_apx_init"     kirk_apx_init     :: Ptr KirkApxT -> IO ()
 --foreign import ccall "kirk_apx_init2"    kirk_apx_init2    :: Ptr KirkApxT -> mpfr_prec_t -> IO ()
 foreign import ccall "kirk_apx_cpy"      kirk_apx_cpy      :: Ptr KirkApxT -> Ptr KirkApxT -> IO ()
 --foreign import ccall "kirk_apx_set"      kirk_apx_set      :: Ptr KirkApxT -> Ptr KirkApxT -> IO ()
---foreign import ccall "kirk_apx_fini"     kirk_apx_fini     :: Ptr KirkApxT -> IO ()
 --foreign import ccall "&kirk_apx_fini"    p_kirk_apx_fini   :: FunPtr (Ptr KirkApxT -> IO ())
 
 copy_apx :: Ptr KirkApxT -> KirkApxT -> IO ()
@@ -152,17 +186,6 @@ foreign import ccall "kirk_real_apx_eff" kirk_real_apx_eff :: KirkRealPtr -> Ptr
 do_real_apx :: Ptr KirkRealT -> Ptr KirkApxT -> KirkSeq0Idx -> IO ()
 do_real_apx real apx (AbsAcc acc) = kirk_real_apx_abs real apx acc
 do_real_apx real apx (Effort eff) = kirk_real_apx_eff real apx eff
-
-instance KirkImportReal KirkReal where
-  approx (KirkReal real) idx =
-    withForeignPtr real $ \r ->
-      with (KirkApxT (KirkBoundT 0 0) 0) $ \p -> do
-{- TODO:
-   this assumes p points to a kirk_apx_t that was initialized the same way
-   kirk_apx_init would have -}
-        do_real_apx r p idx
-        q <- peek p
-        return q
 
 foreign import ccall "kirk_real_ref"     kirk_real_ref     :: KirkRealPtr -> IO KirkRealPtr
 foreign import ccall "&kirk_real_unref"  p_kirk_real_unref :: FunPtr (KirkRealPtr -> IO ())
