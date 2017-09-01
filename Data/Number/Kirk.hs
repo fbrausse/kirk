@@ -17,7 +17,7 @@ module Data.Number.Kirk (
 ) where
 
 import Foreign.Ptr
-import Foreign.ForeignPtr (ForeignPtr,newForeignPtr,newForeignPtr_,withForeignPtr)
+import Foreign.ForeignPtr (ForeignPtr,newForeignPtr,withForeignPtr)
 import Data.Int (Int32,Int64)
 import Data.Word (Word32,Word64)
 import Foreign.Storable (Storable(..))
@@ -25,6 +25,7 @@ import Foreign.Marshal.Utils (with)
 
 #if defined(KIRK_HAVE_HMPFR)
 
+import Foreign.ForeignPtr (newForeignPtr_)
 import qualified Data.Number.MPFR (MPFR)
 import Data.Number.MPFR.FFIhelper (peekP)
 import Data.Number.MPFR.Instances.Near ()
@@ -43,6 +44,12 @@ instance Storable KirkApxT where
     pokeByteOff ptr 0 r
     pokeByteOff ptr 16 c
 
+type Approximation = KirkApxT
+
+instance Show KirkApxT where
+  show (KirkApxT (KirkBoundT e m) c) =
+    "[" ++ show c ++ " +/- " ++ show m ++ "*2^(" ++ show (e-64) ++ ")]"
+
 instance KirkImportReal KirkReal where
   approx (KirkReal real) idx =
     withForeignPtr real $ \r ->
@@ -54,10 +61,13 @@ instance KirkImportReal KirkReal where
         q <- peek p
         return q
 
+copy_apx :: Ptr KirkApxT -> KirkApxT -> IO ()
+copy_apx = copy_apx'
+
 #elif defined(KIRK_HAVE_ROUNDED)
 
-import qualified Numeric.MPFR.Types (MPFR(..))
-import qualified Numeric.RoundedSimple (Rounded(..))
+import Numeric.MPFR.Types (MPFR(..))
+import Numeric.RoundedSimple (Rounded,in_',out_'')
 
 type KirkMPFR = Numeric.MPFR.Types.MPFR
 
@@ -65,9 +75,9 @@ instance Storable KirkApxT where
   sizeOf _    = 48
   alignment _ =  8
   peek ptr    = do
-    r        <- peekByteOff ptr 0
-    c        <- peekByteOff ptr 16
-    return (KirkApxT r c)
+    r <- peekByteOff ptr 0
+    c <- peekByteOff ptr 16
+    return $ KirkApxT r c
   poke ptr (KirkApxT r c) = do
     pokeByteOff ptr 0 r
     pokeByteOff ptr 16 c
@@ -75,15 +85,26 @@ instance Storable KirkApxT where
 foreign import ccall "kirk_apx_init"     kirk_apx_init     :: Ptr KirkApxT -> IO ()
 foreign import ccall "kirk_apx_fini"     kirk_apx_fini     :: Ptr KirkApxT -> IO ()
 
+data Approximation = Approximation KirkBoundT Rounded
+
 instance KirkImportReal KirkReal where
   approx (KirkReal real) idx =
     withForeignPtr real $ \r ->
-      with (KirkApxT (KirkBoundT 0 0) Numeric.MPFR.Types.MPFR { Numeric.MPFR.Types.mpfrPrec = 0, Numeric.MPFR.Types.mpfrSign = 0, Numeric.MPFR.Types.mpfrExp = 0, Numeric.MPFR.Types.mpfrD = nullPtr } ) $ \p -> do
+      with (KirkApxT (KirkBoundT 0 0) MPFR { mpfrPrec = 0, mpfrSign = 0, mpfrExp = 0, mpfrD = nullPtr } ) $ \p -> do
         kirk_apx_init p
         do_real_apx r p idx
-        q <- peek p -- asByteArray d' (precBytes p') $ \l' -> return (Just (Rounded p' s' e' l'), a)
+        (KirkApxT bnd mpfr) <- peek p
+        rnd <- out_'' mpfr
         kirk_apx_fini p
-        return q
+        return $ Approximation bnd rnd
+
+instance Show Approximation where
+  show (Approximation (KirkBoundT e m) c) =
+    "[" ++ show c ++ " +/- " ++ show m ++ "*2^(" ++ show (e-64) ++ ")]"
+
+copy_apx :: Ptr KirkApxT -> Approximation -> IO ()
+copy_apx ptr (Approximation bnd rnd) =
+  in_' rnd $ \mpfr -> copy_apx' ptr $ KirkApxT bnd mpfr
 
 #endif
 
@@ -109,11 +130,7 @@ data KirkRealT {-= KirkRealT
 data KirkReal = KirkReal (ForeignPtr KirkRealT)
 
 class KirkImportReal a where
-  approx :: a -> KirkSeq0Idx -> IO KirkApxT
-
-instance Show KirkApxT where
-  show (KirkApxT (KirkBoundT e m) c) =
-    "[" ++ show c ++ " +/- " ++ show m ++ "*2^(" ++ show (e-64) ++ ")]"
+  approx :: a -> KirkSeq0Idx -> IO Approximation
 
 instance Storable KirkBoundT where
   sizeOf _    = 16
@@ -138,8 +155,8 @@ foreign import ccall "kirk_apx_cpy"      kirk_apx_cpy      :: Ptr KirkApxT -> Pt
 --foreign import ccall "kirk_apx_set"      kirk_apx_set      :: Ptr KirkApxT -> Ptr KirkApxT -> IO ()
 --foreign import ccall "&kirk_apx_fini"    p_kirk_apx_fini   :: FunPtr (Ptr KirkApxT -> IO ())
 
-copy_apx :: Ptr KirkApxT -> KirkApxT -> IO ()
-copy_apx p_tgt src = with src $ kirk_apx_cpy p_tgt
+copy_apx' :: Ptr KirkApxT -> KirkApxT -> IO ()
+copy_apx' p_tgt src = with src $ kirk_apx_cpy p_tgt
 
 foreign import ccall "kirk_real_hs_create" kirk_real_hs_create
   :: FunPtr (Ptr KirkApxT -> Int32 -> IO ())
