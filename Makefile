@@ -1,56 +1,18 @@
 
-DESTDIR ?= /usr/local
-INSTALL  = install
+# commands
+INSTALL       = install
+HSC           = ghc
+HS_PKGS_CMD   = $(HSC)-pkg --simple-output list
+HS_LIBDIR     = $(shell $(HSC) --print-libdir)
 
-LIB_OBJS = \
-	kirk-c.o \
-	kirk-real-obj.o \
-	kirk-dyadic-real.o
+# paths
+DESTDIR      ?= /usr/local
+IRRAM        ?= $(realpath $(HOME)/iRRAM/installed)
 
-LIB_HEADERS = \
-	kirk-common.h \
-	kirk-c-types.h \
-	kirk-real-obj.h \
-	kirk-dyadic-real.h
-
-C_OBJS = \
-	kirk-c.o \
-	kirk-real-obj.o \
-	kirk-dyadic-real.o \
-	kirk-hs.o \
-	test-irram.o
-
-CC_OBJS = \
-	kirk-iRRAM.o \
-	kirk-irram-api.o \
-	logmap-irram.o
-
-HS_OBJS = \
-	Data/Number/Kirk.o \
-	Data/Number/Kirk/Debug.o \
-	Data/Number/Kirk/Irram.o \
-	test-hs.o \
-	logmap.o
-
-HI_OBJS = $(HS_OBJS:.o=.hi)
-
-TESTS = \
-	test-irram \
-	test-hs \
-	logmap
-
-HSC = ghc
-
-HS_PKGS_CMD = $(HSC)-pkg --simple-output list
-HS_LIBDIR = $(shell $(HSC) --print-libdir)
-
-IRRAM = $(realpath $(HOME)/iRRAM/installed)
-HMPFR = $(shell $(HS_PKGS_CMD) hmpfr-0.4.3)
-ROUNDED = $(shell $(HS_PKGS_CMD) rounded-0.1)
-
-OPT_FLAGS = -O2
-WARN_FLAGS = -Wall -Wextra
-FLAGS = $(OPT_FLAGS) $(WARN_FLAGS) -g
+# flags
+OPT_FLAGS     = -O2
+WARN_FLAGS    = -Wall -Wextra
+FLAGS         = $(OPT_FLAGS) $(WARN_FLAGS) -g
 
 override CC  += -std=c99
 override CXX += -std=c++14
@@ -58,44 +20,46 @@ CPPFLAGS     += -DKIRK_CHECK_BOUND -UKIRK_BOUND_SIZE_GMP
 CFLAGS        = $(FLAGS) -pedantic
 CXXFLAGS      = $(FLAGS) -pedantic
 HSFLAGS       = $(FLAGS) -cpp -dynamic -fno-full-laziness -fforce-recomp
-LDLIBS += -lmpfr -lm
-ARFLAGS = rcs
+LDLIBS        = -lmpfr -lm
+ARFLAGS       = rcs
+
+include files.mk
+
+# ----------------------------------------------------------------------
+# dynamic configuration
+# ----------------------------------------------------------------------
 
 ifneq ($(IRRAM),)
-  LIB_OBJS    += \
-	kirk-iRRAM.o \
-	kirk-irram-api.o
-  LIB_HEADERS += \
-	kirk-iRRAM.hh \
-	kirk-irram-api.h
-  CPPFLAGS    += -I$(IRRAM)/include -DKIRK_HAVE_IRRAM
-  CFLAGS      += -pthread
-  CXXFLAGS    += -pthread
-  HSFLAGS     += -threaded # allow FFI function calls from different OS-threads
-test-irram: LDFLAGS += -pthread -L$(IRRAM)/lib -Wl,-rpath,$(IRRAM)/lib
-test-irram: LDLIBS  += -liRRAM
-tests: test-irram
+  CPPFLAGS += -I$(IRRAM)/include -DKIRK_HAVE_IRRAM
+  CFLAGS   += -pthread
+  CXXFLAGS += -pthread
+  HSFLAGS  += -threaded # allow FFI function calls from different OS-threads
+  all    : libkirk-irram.a
+  install: libkirk-irram.a
+  tests  : test-irram
+  test-irram: LDFLAGS += -pthread -L$(IRRAM)/lib -Wl,-rpath,$(IRRAM)/lib
+  test-irram: LDLIBS  += -liRRAM
 endif
 
-ifneq ($(ROUNDED),)
-  CPPFLAGS += -DKIRK_HAVE_ROUNDED
-  HS_MPFR   = $(ROUNDED)
-else ifneq ($(HMPFR),)
-  CPPFLAGS += -DKIRK_HAVE_HMPFR
-  HS_MPFR   = $(HMPFR)
+ifeq ($(HS_MPFR),)
+  ROUNDED ?= $(shell $(HS_PKGS_CMD) rounded-0.1)
+  HMPFR   ?= $(shell $(HS_PKGS_CMD) hmpfr-0.4.3)
+  ifneq ($(ROUNDED),)
+    CPPFLAGS += -DKIRK_HAVE_ROUNDED
+    HS_MPFR   = $(ROUNDED)
+  else ifneq ($(HMPFR),)
+    CPPFLAGS += -DKIRK_HAVE_HMPFR
+    HS_MPFR   = $(HMPFR)
+  endif
 endif
 
 ifneq ($(HS_MPFR),)
-  LIB_OBJS += kirk-hs.o Data/Number/Kirk.o Data/Number/Kirk/Debug.o
-  LIB_HEADERS += Data/Number/Kirk.hi
-  kirk-hs.o: CPPFLAGS += -I$(HS_LIBDIR)/include
+  CPPFLAGS += -I$(HS_LIBDIR)/include -DKIRK_HAVE_HASKELL
+  all    : libkirk-hs.a
+  install: libkirk-hs.a
   ifneq ($(IRRAM),)
-    LIB_OBJS += Data/Number/Kirk/Irram.o
-    LIB_HEADERS += Data/Number/Kirk/Irram.hi
-    test-hs.o logmap.o: Data/Number/Kirk.o Data/Number/Kirk/Irram.o Data/Number/Kirk/Debug.o
     test-hs logmap: LDFLAGS += -L$(IRRAM)/lib -optl-Wl,-rpath,$(IRRAM)/lib
     test-hs logmap: LDLIBS  += -liRRAM -lstdc++ -package $(HS_MPFR)
-    test-hs logmap: Data/Number/Kirk.o Data/Number/Kirk/Irram.o Data/Number/Kirk/Debug.o
     tests: test-hs logmap
   endif
 endif
@@ -103,7 +67,7 @@ endif
 all: libkirk.a tests
 
 debug: OPT_FLAGS = -O0
-debug: libkirk.a tests
+debug: tests
 
 test-irram: test-irram.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
@@ -114,13 +78,21 @@ test-hs: test-hs.o
 logmap: logmap.o logmap-irram.o
 	$(HSC) $(HSFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-kirk-hs.o: Data/Number/Kirk.o
+kirk-hs.o: Data/Number/Kirk_stub.h
+Data/Number/Kirk_stub.h: Data/Number/Kirk.o
 Data/Number/Kirk/Irram.o: Data/Number/Kirk.o
 Data/Number/Kirk/Debug.o: Data/Number/Kirk.o
 
 $(TESTS): libkirk.a
+test-irram: libkirk-irram.a
+test-hs.o logmap.o: Data/Number/Kirk/Irram.o
+test-hs logmap: Data/Number/Kirk/Irram.o libkirk-hs.a libkirk-irram.a
 
 libkirk.a: $(LIB_OBJS)
+libkirk-irram.a: $(LIB_IRRAM_OBJS)
+libkirk-hs.a: $(LIB_HS_OBJS)
+
+%.a:
 	$(AR) $(ARFLAGS) $@ $^
 
 $(HS_OBJS): %.o: %.hs Makefile
@@ -137,6 +109,6 @@ uninstall:
 	$(RM) $(DESTDIR)/lib/libkirk.a
 
 clean:
-	$(RM) $(C_OBJS) $(CC_OBJS) $(HS_OBJS) $(HI_OBJS) libkirk.a $(TESTS)
+	$(RM) $(C_OBJS) $(CC_OBJS) $(HS_OBJS) $(HS_HEADERS) $(LIBS) $(TESTS) Data/Number/Kirk_stub.h
 
 .PHONY: tests install uninstall clean
