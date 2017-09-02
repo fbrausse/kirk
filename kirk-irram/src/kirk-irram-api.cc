@@ -4,7 +4,7 @@
 #define KIRK_INTERNAL_IRRAM_API
 
 #include "kirk-irram-api.h"
-#include "kirk-iRRAM.hh"
+#include "kirk-irram.hh"
 
 using kirk::irram::eval;
 

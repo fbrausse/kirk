@@ -9,7 +9,7 @@
 static_assert((iRRAM_HAVE_TLS-0) && (iRRAM_TLS_STD-0),
               "iRRAM configured with --with-tls=thread_local");
 
-#include "kirk-iRRAM.hh"
+#include "kirk-irram.hh"
 #include "log2.h"
 
 using std::unique_lock;

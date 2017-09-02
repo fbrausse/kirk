@@ -1,0 +1,48 @@
+name:                hkirk
+version:             0.1.0.0
+synopsis:            A common low-level API for communicating real numbers
+-- description:         
+homepage:            https://github.com/fbrausse/kirk
+license:             BSD3
+license-file:        LICENSE
+author:              Franz Brauße
+maintainer:          Franz Brauße <brausse@informatik.uni-trier.de>
+copyright:           Copyright 2017 Franz Brauße <brausse@informatik.uni-trier.de>
+category:            Data
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+tested-with:         GHC == 8.0.2
+
+Flag rounded
+  Description: Use rounded-0.1 as MPFR backend
+  Default    : True
+
+Flag intree
+  Description: enable to link against ../kirk/libkirk.so
+  Default    : False
+
+library
+  exposed-modules:     Data.Number.Kirk, Data.Number.Kirk.Debug
+  -- other-modules:       
+  other-extensions:    ForeignFunctionInterface
+  build-depends:       base >=4.9 && <4.10
+  ghc-options:         -Wall -fno-full-laziness
+
+--  if flag(intree)
+--    extra-lib-dirs: ../kirk
+--    include-dirs: ../kirk/include
+
+  extra-libraries: kirk
+
+  if flag(rounded)
+    cpp-options: "-DKIRK_HAVE_ROUNDED"
+    build-depends:     rounded >=0.1 && <0.2
+  else
+    cpp-options: "-DKIRK_HAVE_HMPFR"
+    build-depends:     hmpfr >=0.4.3 && <0.5
+
+  c-sources:           src/kirk-hs.c
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  default-extensions:  CPP
