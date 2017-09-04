@@ -21,8 +21,6 @@ CXXFLAGS      = $(FLAGS) -pedantic
 HSFLAGS       = $(FLAGS) -cpp -dynamic -fno-full-laziness -fforce-recomp
 ARFLAGS       = rcs
 
-#include files.mk
-
 # ----------------------------------------------------------------------
 # dynamic configuration
 # ----------------------------------------------------------------------
@@ -58,7 +56,8 @@ DLIB = lib$(LIB).so
 LIBS = $(DLIB) $(SLIB)
 OBJS = $(C_OBJS) $(CC_OBJS) $(HS_OBJS)
 DEPS = $(patsubst %.o,%.d,$(call shared,$(OBJS)) $(call static,$(OBJS)))
-$(OBJS): CPPFLAGS += -MMD
+$(call static,$(OBJS)): CPPFLAGS += -MMD
+$(call shared,$(OBJS)): CPPFLAGS += -MMD
 
 all: $(LIBS) tests
 
@@ -115,14 +114,14 @@ $(call shared,$(C_OBJS)): shared/%.o: %.c Makefile
 -include $(DEPS)
 
 install: $(LIBS)
-	mkdir -p $(DESTDIR)/include/$(LIB) && \
-		$(INSTALL) -m 0644 -t $(DESTDIR)/include/$(LIB) $(HEADERS)
+	mkdir -p $(DESTDIR)/include && \
+		$(INSTALL) -m 0644 -t $(DESTDIR)/include $(HEADERS)
 	mkdir -p $(DESTDIR)/lib && \
 		$(INSTALL) -m 0755 -t $(DESTDIR)/lib $(DLIB) && \
 		$(INSTALL) -m 0644 -t $(DESTDIR)/lib $(SLIB)
 
 uninstall:
-	$(RM) $(addprefix $(DESTDIR)/include/$(LIB)/,$(HEADERS))
+	$(RM) $(addprefix $(DESTDIR)/include/,$(HEADERS))
 	$(RM) $(addprefix $(DESTDIR)/lib/,$(LIBS))
 
 clean:
