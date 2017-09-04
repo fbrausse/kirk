@@ -14,7 +14,7 @@ OPT_FLAGS     = -O2
 WARN_FLAGS    = -Wall -Wextra
 FLAGS         = $(OPT_FLAGS) $(WARN_FLAGS) -g
 
-override CC  += -std=c99
+override CC  += -std=c11
 override CXX += -std=c++14
 CFLAGS        = $(FLAGS) -pedantic
 CXXFLAGS      = $(FLAGS) -pedantic

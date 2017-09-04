@@ -4,6 +4,17 @@
 
 #include "kirk-c-types.h"
 
+#if (__cplusplus-0) >= 201103L
+# include <atomic>
+# ifndef _Atomic
+#  define _Atomic(type)	std::atomic<type>
+# endif
+#elif __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
+# include <stdatomic.h>
+#else
+# error C11/C++11 atomic features required to implement refcnt
+#endif
+
 #undef KIRK_API
 #ifdef KIRK_INTERNAL_REAL_OBJ
 # define KIRK_API	extern KIRK_EXPORT
@@ -13,6 +24,7 @@
 
 #ifdef __cplusplus
 extern "C" {
+using std::atomic_flag;
 #endif
 
 typedef struct kirk_real_obj_class_t   kirk_real_obj_class_t;
@@ -31,12 +43,15 @@ struct kirk_real_obj_class_t {
 struct kirk_real_obj_t {
 	kirk_real_t parent; /* .clazz points to a kirk_real_obj_class_t */
 	kirk_real_obj_destroy_f *destroy;  /* overridden for memory */
-	/*_Atomic*/ size_t refcnt;
-	unsigned char dangling;
+	volatile _Atomic(size_t) refcnt;
+	volatile atomic_flag refsunk;
 	/*
 	unsigned acc_native : 1;
 	unsigned eff_native : 1;*/
 };
+
+#define KIRK_REAL_OBJ_INIT(clazz,destroy) \
+	{ { (clazz) }, (destroy), ATOMIC_VAR_INIT((size_t)1), ATOMIC_FLAG_INIT }
 
 struct kirk_test_real_t {
 	kirk_real_obj_t parent;

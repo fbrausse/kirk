@@ -11,15 +11,14 @@ void kirk_real_obj_destroy_free(kirk_real_obj_t *r) { free((void *)r); }
 kirk_real_t * kirk_real_obj_default_ref(kirk_real_t *r)
 {
 	struct kirk_real_obj_t *tr = (void *)r;
-	tr->refcnt += 1 - tr->dangling;
-	tr->dangling = 0;
+	atomic_fetch_add(&tr->refcnt, atomic_flag_test_and_set(&tr->refsunk));
 	return r;
 }
 
 void kirk_real_obj_default_unref(kirk_real_t *r)
 {
 	struct kirk_real_obj_t *tr = (void *)r;
-	if (!--tr->refcnt)
+	if (atomic_fetch_sub(&tr->refcnt, 1) == 1)
 		kirk_real_obj_finalize(tr);
 }
 
@@ -43,8 +42,8 @@ void kirk_real_obj_init(kirk_real_obj_t *r)
 {
 	r->parent.clazz = &kirk_real_obj_class.parent;
 	r->destroy = NULL;
-	r->refcnt = 1;
-	r->dangling = 1;
+	atomic_init(&r->refcnt, (size_t)1);
+	atomic_flag_clear(&r->refsunk);
 }
 
 static kirk_real_t * test_ref(kirk_real_t *r)
