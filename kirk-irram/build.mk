@@ -28,7 +28,7 @@ all:
 tests: test-irram
 
 test-irram: tests/test-irram.c | libkirk-irram.so
-test-irram: LDFLAGS += -L. -Wl,-rpath,.
+test-irram: LDFLAGS += -L. $(CCLD_RPATH_PREFIX)$(realpath .)
 test-irram: LDLIBS := -lkirk-irram $(LDLIBS)
 
 libkirk-irram.so:
