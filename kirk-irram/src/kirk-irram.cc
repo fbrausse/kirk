@@ -9,6 +9,7 @@
 static_assert((iRRAM_HAVE_TLS-0) && (iRRAM_TLS_STD-0),
               "iRRAM configured with --with-tls=thread_local");
 
+#include "kirk-real-obj.h"
 #include "kirk-irram.hh"
 #include "log2.h"
 
@@ -132,11 +133,9 @@ struct real_out_sock {
 	bool offer(const iRRAM::DYADIC &d, const iRRAM::sizetype &err);
 };
 
-struct out_real : ::kirk_real_t {
+struct out_real : ::kirk_real_obj_t {
 	const machine_t     proc;
 	const size_t        out_idx;
-	std::atomic<size_t> refcnt;
-	std::atomic<bool>   dangling;
 
 	explicit out_real(machine_t proc, size_t out_idx);
 	~out_real();
@@ -193,7 +192,7 @@ machine_t kirk::irram::eval(::kirk_real_t *const *in, size_t n_in,
 	machine_t p = std::make_shared<machine>(in, n_in, n_out);
 	p->exec(move(f), name);
 	for (size_t i=0; i<n_out; i++)
-		out[i] = new out_real(p, i);
+		out[i] = &(new out_real(p, i))->parent;
 	return p;
 }
 
@@ -364,24 +363,10 @@ void machine::run(real_out_sock &, ::kirk_eff_t e)
  * kirk_real_t
  * -------------------------------------------------------------------------- */
 
-static ::kirk_real_t * real_ref(::kirk_real_t *r)
-{
-	out_real *tr = static_cast<out_real *>(r);
-	tr->refcnt += 1 - tr->dangling;
-	tr->dangling = false;
-	return r;
-}
-
-static void real_unref(::kirk_real_t *kr)
-{
-	out_real *r = static_cast<out_real *>(kr);
-	if (!--r->refcnt)
-		delete r;
-}
-
 static void real_apx_abs(const ::kirk_real_t *r, ::kirk_apx_t *apx, ::kirk_abs_t a)
 {
-	return static_cast<const out_real *>(r)->request_abs(apx, a);
+	const ::kirk_real_obj_t *tr = (const ::kirk_real_obj_t *)r;
+	return static_cast<const out_real *>(tr)->request_abs(apx, a);
 }
 /*
 static void real_apx_eff(const ::kirk_real_t *r, ::kirk_apx_t *apx, ::kirk_eff_t e)
@@ -389,23 +374,29 @@ static void real_apx_eff(const ::kirk_real_t *r, ::kirk_apx_t *apx, ::kirk_eff_t
 	return static_cast<const out_real *>(r)->request_eff(apx, e);
 }
 */
-static const ::kirk_real_class_t real_class = {
-	real_ref,
-	real_unref,
-	real_apx_abs,
-	kirk_real_apx_eff_abs, //	real_apx_eff,
+static const ::kirk_real_obj_class_t real_class = {
+	{
+		kirk_real_obj_default_ref,
+		kirk_real_obj_default_unref,
+		real_apx_abs,
+		kirk_real_apx_eff_abs, //	real_apx_eff,
+	},
+	/* .finalize = */ kirk_real_obj_default_finalize,
 };
 
 /* --------------------------------------------------------------------------
  * out_real
  * -------------------------------------------------------------------------- */
 
+static void out_real_destroy(kirk_real_obj_t *p)
+{
+	delete static_cast<out_real *>(p);
+}
+
 out_real::out_real(machine_t proc, size_t out_idx)
-: ::kirk_real_t { &real_class, }
+: ::kirk_real_obj_t KIRK_REAL_OBJ_INIT(&real_class.parent,out_real_destroy)
 , proc(move(proc))
 , out_idx(out_idx)
-, refcnt(1)
-, dangling(true)
 {}
 
 out_real::~out_real()
