@@ -22,6 +22,8 @@ TESTS = \
 
 LIB = kirk-irram
 
+.PHONY: tests
+
 all:
 tests: test-irram
 

@@ -1,25 +1,5 @@
 
-# commands
-INSTALL       = install
-HSC           = ghc
-HS_PKGS_CMD   = $(HSC)-pkg --simple-output list
-HS_LIBDIR     = $(shell $(HSC) --print-libdir)
-
-# paths
-DESTDIR      ?= /usr/local
-IRRAM        ?= $(realpath $(HOME)/iRRAM/installed)
-
-# flags
-OPT_FLAGS     = -O2
-WARN_FLAGS    = -Wall -Wextra
-FLAGS         = $(OPT_FLAGS) $(WARN_FLAGS) -g
-
-override CC  += -std=c99
-override CXX += -std=c++14
-CFLAGS        = $(FLAGS) -pedantic
-CXXFLAGS      = $(FLAGS) -pedantic
-HSFLAGS       = $(FLAGS) -cpp -dynamic -fno-full-laziness -fforce-recomp
-ARFLAGS       = rcs
+include ../config.mk
 
 # ----------------------------------------------------------------------
 # dynamic configuration
@@ -42,8 +22,8 @@ ifneq ($(HS_MPFR),)
 #  all    : libkirk-hs.a
 #  install: libkirk-hs.a
   ifneq ($(IRRAM),)
-    test-hs logmap: LDFLAGS += -L$(IRRAM)/lib -optl-Wl,-rpath,$(IRRAM)/lib
-    test-hs logmap: LDLIBS  += -liRRAM -lstdc++ -package $(HS_MPFR)
+#    test-hs logmap: LDFLAGS += -L$(IRRAM)/lib -optl-Wl,-rpath,$(IRRAM)/lib
+#    test-hs logmap: LDLIBS  += -liRRAM -lstdc++ -package $(HS_MPFR)
 #    tests: test-hs logmap
   endif
 endif
