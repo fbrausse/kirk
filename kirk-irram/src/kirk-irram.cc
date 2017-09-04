@@ -20,6 +20,7 @@ using std::swap;
 using std::unique_ptr;
 using std::shared_ptr;
 using std::weak_ptr;
+using std::make_unique;
 
 using iRRAM::REAL;
 using iRRAM::DYADIC;
@@ -148,6 +149,8 @@ struct kirk_real_unref_del {
 	void operator()(::kirk_real_t *r) { ::kirk_real_unref(r); }
 };
 
+typedef unique_ptr<::kirk_real_t,kirk_real_unref_del> kirk_real_ptr;
+
 } /* end anon namespace */
 
 /* --------------------------------------------------------------------------
@@ -156,8 +159,9 @@ struct kirk_real_unref_del {
 
 struct kirk::irram::machine : std::enable_shared_from_this<machine> {
 
-	std::vector<std::unique_ptr<::kirk_real_t,kirk_real_unref_del>> inputs;
-	std::vector<real_out_sock> outputs;
+	unique_ptr<kirk_real_ptr[]> inputs;
+	unique_ptr<real_out_sock[]> outputs;
+	const size_t n_in, n_out;
 
 	std::atomic_bool cancelled;
 	/* protects
@@ -240,15 +244,17 @@ bool real_out_sock::offer(const DYADIC &d, const sizetype &err)
  * -------------------------------------------------------------------------- */
 
 machine::machine(::kirk_real_t *const *in, size_t n_in, size_t n_out)
-: outputs(n_out)
+: inputs(make_unique<kirk_real_ptr[]>(n_in))
+, outputs(make_unique<real_out_sock[]>(n_out))
+, n_in(n_in)
+, n_out(n_out)
 , cancelled(false)
 , max_effort_computed(0)
 , max_effort_requested(0)
 , more_accuracy_requested(false)
 {
-	inputs.reserve(n_in);
 	for (size_t i=0; i<n_in; i++)
-		inputs.emplace_back(::kirk_real_ref(in[i]));
+		inputs[i] = kirk_real_ptr(::kirk_real_ref(in[i]));
 }
 
 machine::~machine()
@@ -259,7 +265,7 @@ machine::~machine()
 
 void machine::computation_prepare(vector<REAL> &in)
 {
-	in.reserve(inputs.size());
+	in.reserve(n_in);
 	::kirk_apx_t apx;
 	::kirk_abs_t acc = iRRAM::actual_stack().actual_prec;
 //	::kirk_eff_t eff = (unsigned)iRRAM::actual_stack().prec_step;
@@ -267,8 +273,8 @@ void machine::computation_prepare(vector<REAL> &in)
 	DYADIC dd;
 
 	/* mtx_in: get lock on inputs busy */
-	for (const auto &i : inputs)
-		in.emplace_back(make_REAL(*i.get(), true, dd, apx, acc));
+	for (size_t i=0; i<n_in; i++)
+		in.emplace_back(make_REAL(*inputs[i], true, dd, apx, acc));
 	/* release mtx_in */
 
 	::kirk_apx_fini(&apx);
@@ -281,7 +287,7 @@ void machine::computation_finished(const vector<REAL> &out)
 	DYADIC d;
 	sizetype err;
 	bool all_enough = true;
-	for (size_t i=0; i<outputs.size(); i++) {
+	for (size_t i=0; i<n_out; i++) {
 		out[i].to_formal_ball(d, err);
 		all_enough &= outputs[i].offer(d, err);
 	}
@@ -305,7 +311,7 @@ void machine::compute(std::weak_ptr<machine> wp, func_type f)
 	std::vector<REAL> in, out;
 
 	if (std::shared_ptr<machine> p = wp.lock()) {
-		out.resize(p->outputs.size());
+		out.resize(p->n_out);
 		p->computation_prepare(in);
 	} else
 		return;
