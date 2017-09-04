@@ -163,16 +163,16 @@ struct kirk::irram::machine : std::enable_shared_from_this<machine> {
 	unique_ptr<real_out_sock[]> outputs;
 	const size_t n_in, n_out;
 
-	std::atomic_bool cancelled;
+	std::atomic_bool cancelled { false };
 	/* protects
 	 * - max_effort_(requested|computed)
 	 * - more_accuracy_requested and
 	 * - output_requested */
 	std::mutex mtx_outputs;
-	::kirk_eff_t max_effort_computed;
+	::kirk_eff_t max_effort_computed = 0;
 	std::condition_variable output_requested;
-	::kirk_eff_t max_effort_requested;
-	bool more_accuracy_requested;
+	::kirk_eff_t max_effort_requested = 0;
+	bool more_accuracy_requested = false;
 
 	// TODO: store eventual iRRAM_Numerical_Exception(::type)
 
@@ -248,10 +248,6 @@ machine::machine(::kirk_real_t *const *in, size_t n_in, size_t n_out)
 , outputs(make_unique<real_out_sock[]>(n_out))
 , n_in(n_in)
 , n_out(n_out)
-, cancelled(false)
-, max_effort_computed(0)
-, max_effort_requested(0)
-, more_accuracy_requested(false)
 {
 	for (size_t i=0; i<n_in; i++)
 		inputs[i] = kirk_real_ptr(::kirk_real_ref(in[i]));
