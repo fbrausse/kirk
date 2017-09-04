@@ -8,7 +8,7 @@
 
 #define KIRK_INTERNAL_HS
 
-#include "kirk-real-obj.h"
+#include <kirk-real-obj.h>
 
 #undef KIRK_API
 #ifdef KIRK_INTERNAL_HS

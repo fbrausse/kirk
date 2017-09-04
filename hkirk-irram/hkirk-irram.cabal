@@ -36,3 +36,12 @@ library
   hs-source-dirs:      src
   default-language:    Haskell2010
   default-extensions:  CPP
+
+executable test-hs
+  ghc-options:         -Wall -fno-full-laziness -threaded
+  hs-source-dirs: tests
+  main-is: test-hs.hs
+  default-language: Haskell2010
+  other-extensions: ForeignFunctionInterface
+  build-depends: base >=4.9 && <4.10, hkirk >=0.1.0.0 && <0.2.0.0, hkirk-irram >=0.1.0.0 && <0.2.0.0
+  extra-libraries: kirk-irram, iRRAM

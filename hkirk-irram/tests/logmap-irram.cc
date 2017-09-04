@@ -1,5 +1,5 @@
 
-#include "kirk-iRRAM.hh"
+#include <kirk-irram.hh>
 
 /* don't export the symbol */
 namespace {
