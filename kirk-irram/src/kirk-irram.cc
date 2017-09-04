@@ -9,7 +9,8 @@
 static_assert((iRRAM_HAVE_TLS-0) && (iRRAM_TLS_STD-0),
               "iRRAM configured with --with-tls=thread_local");
 
-#include "kirk-iRRAM.hh"
+#include "kirk-real-obj.h"
+#include "kirk-irram.hh"
 #include "log2.h"
 
 using std::unique_lock;
@@ -19,6 +20,7 @@ using std::swap;
 using std::unique_ptr;
 using std::shared_ptr;
 using std::weak_ptr;
+using std::make_unique;
 
 using iRRAM::REAL;
 using iRRAM::DYADIC;
@@ -132,12 +134,12 @@ struct real_out_sock {
 	bool offer(const iRRAM::DYADIC &d, const iRRAM::sizetype &err);
 };
 
-struct out_real : ::kirk_real_t {
+struct out_real : ::kirk_real_obj_t {
 	const machine_t     proc;
 	const size_t        out_idx;
-	std::atomic<size_t> refcnt;
 
 	explicit out_real(machine_t proc, size_t out_idx);
+	~out_real();
 
 	void request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const;
 	void request_eff(::kirk_apx_t *apx, ::kirk_eff_t e) const;
@@ -147,6 +149,8 @@ struct kirk_real_unref_del {
 	void operator()(::kirk_real_t *r) { ::kirk_real_unref(r); }
 };
 
+typedef unique_ptr<::kirk_real_t,kirk_real_unref_del> kirk_real_ptr;
+
 } /* end anon namespace */
 
 /* --------------------------------------------------------------------------
@@ -155,28 +159,29 @@ struct kirk_real_unref_del {
 
 struct kirk::irram::machine : std::enable_shared_from_this<machine> {
 
-	std::vector<std::unique_ptr<::kirk_real_t,kirk_real_unref_del>> inputs;
-	std::vector<real_out_sock> outputs;
+	unique_ptr<kirk_real_ptr[]> inputs;
+	unique_ptr<real_out_sock[]> outputs;
+	const size_t n_in, n_out;
 
-	std::atomic_bool cancelled;
+	std::atomic_bool cancelled { false };
 	/* protects
 	 * - max_effort_(requested|computed)
 	 * - more_accuracy_requested and
 	 * - output_requested */
 	std::mutex mtx_outputs;
-	::kirk_eff_t max_effort_computed;
+	::kirk_eff_t max_effort_computed = 0;
 	std::condition_variable output_requested;
-	::kirk_eff_t max_effort_requested;
-	bool more_accuracy_requested;
+	::kirk_eff_t max_effort_requested = 0;
+	bool more_accuracy_requested = false;
 
 	// TODO: store eventual iRRAM_Numerical_Exception(::type)
 
 	void computation_prepare(std::vector<iRRAM::REAL> &in);
 	void computation_finished(const std::vector<iRRAM::REAL> &out);
 
-	static int compute(std::weak_ptr<machine> wp, func_type f);
+	static void compute(std::weak_ptr<machine> wp, func_type f);
 
-	void exec(func_type f);
+	void exec(func_type f, const char *name);
 	void run(real_out_sock &os, ::kirk_abs_t a);
 	void run(real_out_sock &os, ::kirk_eff_t e);
 
@@ -186,12 +191,12 @@ struct kirk::irram::machine : std::enable_shared_from_this<machine> {
 
 machine_t kirk::irram::eval(::kirk_real_t *const *in, size_t n_in,
                             ::kirk_real_t **out     , size_t n_out,
-                            func_type f)
+                            func_type f, const char *name)
 {
 	machine_t p = std::make_shared<machine>(in, n_in, n_out);
-	p->exec(move(f));
+	p->exec(move(f), name);
 	for (size_t i=0; i<n_out; i++)
-		out[i] = new out_real(p, i);
+		out[i] = &(new out_real(p, i))->parent;
 	return p;
 }
 
@@ -239,15 +244,13 @@ bool real_out_sock::offer(const DYADIC &d, const sizetype &err)
  * -------------------------------------------------------------------------- */
 
 machine::machine(::kirk_real_t *const *in, size_t n_in, size_t n_out)
-: outputs(n_out)
-, cancelled(false)
-, max_effort_computed(0)
-, max_effort_requested(0)
-, more_accuracy_requested(false)
+: inputs(make_unique<kirk_real_ptr[]>(n_in))
+, outputs(make_unique<real_out_sock[]>(n_out))
+, n_in(n_in)
+, n_out(n_out)
 {
-	inputs.reserve(n_in);
 	for (size_t i=0; i<n_in; i++)
-		inputs.emplace_back(::kirk_real_ref(in[i]));
+		inputs[i] = kirk_real_ptr(::kirk_real_ref(in[i]));
 }
 
 machine::~machine()
@@ -258,7 +261,7 @@ machine::~machine()
 
 void machine::computation_prepare(vector<REAL> &in)
 {
-	in.reserve(inputs.size());
+	in.reserve(n_in);
 	::kirk_apx_t apx;
 	::kirk_abs_t acc = iRRAM::actual_stack().actual_prec;
 //	::kirk_eff_t eff = (unsigned)iRRAM::actual_stack().prec_step;
@@ -266,8 +269,8 @@ void machine::computation_prepare(vector<REAL> &in)
 	DYADIC dd;
 
 	/* mtx_in: get lock on inputs busy */
-	for (const auto &i : inputs)
-		in.emplace_back(make_REAL(*i.get(), true, dd, apx, acc));
+	for (size_t i=0; i<n_in; i++)
+		in.emplace_back(make_REAL(*inputs[i], true, dd, apx, acc));
 	/* release mtx_in */
 
 	::kirk_apx_fini(&apx);
@@ -280,7 +283,7 @@ void machine::computation_finished(const vector<REAL> &out)
 	DYADIC d;
 	sizetype err;
 	bool all_enough = true;
-	for (size_t i=0; i<outputs.size(); i++) {
+	for (size_t i=0; i<n_out; i++) {
 		out[i].to_formal_ball(d, err);
 		all_enough &= outputs[i].offer(d, err);
 	}
@@ -296,7 +299,7 @@ void machine::computation_finished(const vector<REAL> &out)
 	});
 }
 
-int machine::compute(std::weak_ptr<machine> wp, func_type f)
+void machine::compute(std::weak_ptr<machine> wp, func_type f)
 {
 	//KIRK_MACHINE_DEBUG(" iterating w/ effort %u...\n",
 	//		    (effort_t)iRRAM::actual_stack().prec_step);
@@ -304,10 +307,10 @@ int machine::compute(std::weak_ptr<machine> wp, func_type f)
 	std::vector<REAL> in, out;
 
 	if (std::shared_ptr<machine> p = wp.lock()) {
-		out.resize(p->outputs.size());
+		out.resize(p->n_out);
 		p->computation_prepare(in);
 	} else
-		return 0;
+		return;
 
 	/*
 	std::vector<BaseSock_t> locked_outputs(outputs.size());
@@ -319,27 +322,28 @@ int machine::compute(std::weak_ptr<machine> wp, func_type f)
 		p->computation_finished(out);
 		iRRAM::state->infinite = !p->cancelled;
 	}
-
-	return 0;
 }
 
-void machine::exec(std::function<void(const REAL *,REAL *)> f)
+void machine::exec(std::function<void(const REAL *,REAL *)> f, const char *name)
 {
 	std::weak_ptr<machine> wp = shared_from_this();
-	std::thread([wp,f]{
+	std::thread t([wp,f]{
 //		try {
 			iRRAM::exec(compute, wp, f);
 //		} catch (const char *) {
 //		}
-	}).detach();
+	});
+	if (name)
+		pthread_setname_np(t.native_handle(), name);
+	t.detach();
 }
 
 void machine::run(real_out_sock &os, ::kirk_abs_t a)
 {
+	std::unique_lock<decltype(mtx_outputs)> lock(mtx_outputs);
 	bool more = a < os.req_accuracy;
 	if (more)
 		os.req_accuracy = a;
-	std::unique_lock<decltype(mtx_outputs)> lock(mtx_outputs);
 	if ((more_accuracy_requested |= more))
 		output_requested.notify_one();
 	//KIRK_MACHINE_DEBUG("::run_abs(%u)\n", a);
@@ -361,22 +365,10 @@ void machine::run(real_out_sock &, ::kirk_eff_t e)
  * kirk_real_t
  * -------------------------------------------------------------------------- */
 
-static ::kirk_real_t * real_ref(::kirk_real_t *r)
-{
-	static_cast<out_real *>(r)->refcnt++;
-	return r;
-}
-
-static void real_unref(::kirk_real_t *kr)
-{
-	out_real *r = static_cast<out_real *>(kr);
-	if (!--r->refcnt)
-		delete r;
-}
-
 static void real_apx_abs(const ::kirk_real_t *r, ::kirk_apx_t *apx, ::kirk_abs_t a)
 {
-	return static_cast<const out_real *>(r)->request_abs(apx, a);
+	const ::kirk_real_obj_t *tr = (const ::kirk_real_obj_t *)r;
+	return static_cast<const out_real *>(tr)->request_abs(apx, a);
 }
 /*
 static void real_apx_eff(const ::kirk_real_t *r, ::kirk_apx_t *apx, ::kirk_eff_t e)
@@ -384,30 +376,46 @@ static void real_apx_eff(const ::kirk_real_t *r, ::kirk_apx_t *apx, ::kirk_eff_t
 	return static_cast<const out_real *>(r)->request_eff(apx, e);
 }
 */
-static const ::kirk_real_class_t real_class = {
-	real_ref,
-	real_unref,
-	real_apx_abs,
-	kirk_real_apx_eff_abs, //	real_apx_eff,
+static const ::kirk_real_obj_class_t real_class = {
+	{
+		kirk_real_obj_default_ref,
+		kirk_real_obj_default_unref,
+		real_apx_abs,
+		kirk_real_apx_eff_abs, //	real_apx_eff,
+	},
+	/* .finalize = */ kirk_real_obj_default_finalize,
 };
 
 /* --------------------------------------------------------------------------
  * out_real
  * -------------------------------------------------------------------------- */
 
+static void out_real_destroy(kirk_real_obj_t *p)
+{
+	delete static_cast<out_real *>(p);
+}
+
 out_real::out_real(machine_t proc, size_t out_idx)
-: ::kirk_real_t { &real_class, }
+: ::kirk_real_obj_t KIRK_REAL_OBJ_INIT(&real_class.parent,out_real_destroy)
 , proc(move(proc))
 , out_idx(out_idx)
-, refcnt(1)
 {}
+
+out_real::~out_real()
+{
+	if (proc.use_count() <= 2) {
+		std::unique_lock<decltype(proc->mtx_outputs)> lock(proc->mtx_outputs);
+		proc->cancelled = true;
+		proc->output_requested.notify_one();
+	}
+}
 
 void out_real::request_abs(::kirk_apx_t *apx, ::kirk_abs_t a) const
 {
 	real_out_sock &os = proc->outputs[out_idx];
 	//KIRK_SOCK_DEBUG("::get w/ effort %u\n", e);
-	std::shared_lock<decltype(os.mtx)> lock(os.mtx);
 	proc->run(os, a);
+	std::shared_lock<decltype(os.mtx)> lock(os.mtx);
 	os.cond.wait(lock, [&]{return a >= os.accuracy;});
 	kirk_apx_set(apx, os.apx.center, &os.apx.radius);
 }

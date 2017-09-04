@@ -179,6 +179,9 @@ KIRK_API inline void          kirk_real_apx_eff_abs(const kirk_real_t *,
  * Reals
  * -------------------------------------------------------------------------- */
 
+typedef void kirk_apx_abs_f(const kirk_real_t *, kirk_apx_t *, kirk_abs_t);
+typedef void kirk_apx_eff_f(const kirk_real_t *, kirk_apx_t *, kirk_eff_t);
+
 struct kirk_real_class_t {
 	kirk_real_t * (*ref    )(kirk_real_t *);
 	void          (*unref  )(kirk_real_t *);
@@ -187,8 +190,8 @@ struct kirk_real_class_t {
 	/* all of the below three function pointers must be non-NULL, also see
 	 * the kirk_real_apx_(abs|eff)_(abs|eff)() helper functions
 	 * In order to represent Reals, these functions must not fail */
-	void (*apx_abs)(const kirk_real_t *, kirk_apx_t *, kirk_abs_t);
-	void (*apx_eff)(const kirk_real_t *, kirk_apx_t *, kirk_eff_t);
+	kirk_apx_abs_f *apx_abs;
+	kirk_apx_eff_f *apx_eff;
 
 	/* further details are implementation-defined:
 	 * do not use the size of this struct */

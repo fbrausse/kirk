@@ -17,7 +17,7 @@ typedef std::function<void(const iRRAM::REAL *in,iRRAM::REAL *out)> func_type;
 
 std::shared_ptr<machine> eval(::kirk_real_t *const *in, size_t n_in,
                               ::kirk_real_t **out     , size_t n_out,
-                              func_type f);
+                              func_type f, const char *name = nullptr);
 
 iRRAM::REAL make_REAL(const ::kirk_real_t &, bool apx_abs = true);
 
