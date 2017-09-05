@@ -13,7 +13,7 @@ PKG_ID = $(patsubst %.conf,%,$(notdir $(PKG_CONF)))
 
 .PHONY: all clean config tests
 
-all: $(PKG_DB)
+all: $(PKG_DB) tests
 
 $(PKG_DB): dist/cabal-config-flags
 	cabal build
@@ -23,7 +23,7 @@ tests: $(PKG_DB)
 
 config: dist/cabal-config-flags
 
-dist/cabal-config-flags:
+dist/cabal-config-flags: hkirk-irram.cabal
 	cabal configure \
 		--extra-lib-dirs $(IRRAM)/lib --extra-include-dirs $(IRRAM)/include \
 		--extra-lib-dirs ../kirk-irram --extra-include-dirs ../kirk-irram/include \

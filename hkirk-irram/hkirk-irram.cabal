@@ -23,7 +23,7 @@ library
   -- other-modules:       
   other-extensions:    ForeignFunctionInterface
   build-depends:       base >=4.9 && <4.10, hkirk >=0.1.0.0 && <0.2.0.0
-  ghc-options:         -Wall -fno-full-laziness -threaded
+  ghc-options:         -Wall -fno-full-laziness
   cpp-options:         -DKIRK_HAVE_IRRAM
 
 --  if flag(intree)
