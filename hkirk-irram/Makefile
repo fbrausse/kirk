@@ -24,7 +24,7 @@ tests: $(PKG_DB)
 config: dist/cabal-config-flags
 
 dist/cabal-config-flags: hkirk-irram.cabal
-	cabal configure \
+	cabal configure --ghc-pkg-options="--force" \
 		--extra-lib-dirs $(IRRAM)/lib --extra-include-dirs $(IRRAM)/include \
 		--extra-lib-dirs ../kirk-irram --extra-include-dirs ../kirk-irram/include \
 		--package-db ../hkirk/$(PKG_DB) || { cabal clean; exit 1; }

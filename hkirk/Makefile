@@ -14,7 +14,7 @@ $(PKG_DB): dist/cabal-config-flags
 config: dist/cabal-config-flags
 
 dist/cabal-config-flags:
-	cabal configure \
+	cabal configure --ghc-pkg-options="--force" \
 		--extra-lib-dirs ../kirk --extra-include-dirs ../kirk/include || { cabal clean; exit 1; }
 #		--extra-lib-dirs $(DESTDIR)/lib --extra-include-dirs $(DESTDIR)/include \
 
