@@ -7,7 +7,7 @@
 
 module Data.Number.Kirk (
   KirkBoundT(..),
-  KirkApxT(..),
+  Approximation(..),
   KirkSeq0Idx(..),
   KirkReal,KirkImportReal(..),
   KirkFun10,kirk10,

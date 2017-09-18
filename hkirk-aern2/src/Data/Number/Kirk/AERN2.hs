@@ -13,12 +13,12 @@ import AERN2.MP.UseMPFR.Float
 import AERN2.MP.Dyadic
 import AERN2.Real
 
-import Data.Number.Kirk (KirkImportReal(..),KirkSeq0Idx(..),KirkReal,KirkApxT(..),KirkBoundT(..))
+import Data.Number.Kirk (KirkImportReal(..),KirkSeq0Idx(..),KirkReal,Approximation(..),KirkBoundT(..))
 
 instance KirkImportReal CauchyReal where
   approx r (Effort eff) = approx r (AbsAcc (convert eff))
   approx r (AbsAcc acc) = 
-    return $ KirkApxT rad c
+    return $ Approximation rad c
     where
     b = r ? (bitsS $ negate $ toInteger acc)
     c = mpFloat $ AERN2.Real.centre b
@@ -34,7 +34,7 @@ toAERN2CR r =
       updateRadius (MTN.+ (errorBound radF)) (mpBall (dyadic c))
       where
       acc = convert (- (fromAccuracy acS))
-      (KirkApxT rad c) = unsafePerformIO (approx r (AbsAcc acc))
+      (Approximation rad c) = unsafePerformIO (approx r (AbsAcc acc))
       (KirkBoundT e m) = rad
       radF 
           | e >= 0 = encodeFloat (convert m) (convert e) :: MPFloat
