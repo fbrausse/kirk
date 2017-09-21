@@ -18,6 +18,7 @@ module Data.Number.Kirk (
 
 import Foreign.Ptr
 import Foreign.ForeignPtr (ForeignPtr,newForeignPtr,withForeignPtr)
+import Foreign.StablePtr
 import Data.Int (Int32,Int64)
 import Data.Word (Word32,Word64)
 import Foreign.Storable (Storable(..))
@@ -158,24 +159,25 @@ foreign import ccall "kirk_apx_cpy"      kirk_apx_cpy      :: Ptr KirkApxT -> Pt
 copy_apx' :: Ptr KirkApxT -> KirkApxT -> IO ()
 copy_apx' p_tgt src = with src $ kirk_apx_cpy p_tgt
 
-foreign import ccall "kirk_real_hs_create" kirk_real_hs_create
-  :: FunPtr (Ptr KirkApxT -> Int32 -> IO ())
-  -> FunPtr (Ptr KirkApxT -> Word32 -> IO ())
-  -> IO KirkRealPtr
+type KirkHsP = StablePtr (KirkSeq0Idx -> IO Approximation)
 
-foreign import ccall "wrapper" wrap_apx_abs
-  :: (Ptr KirkApxT -> Int32 -> IO ())
-  -> IO (FunPtr (Ptr KirkApxT -> Int32 -> IO ()))
+kirk_hs_approx :: KirkSeq0Idx -> KirkHsP -> Ptr KirkApxT -> IO ()
+kirk_hs_approx idx pr p_tgt = do
+  f <- deRefStablePtr pr
+  f idx >>= copy_apx p_tgt
 
-foreign import ccall "wrapper" wrap_apx_eff
-  :: (Ptr KirkApxT -> Word32 -> IO ())
-  -> IO (FunPtr (Ptr KirkApxT -> Word32 -> IO ()))
+foreign export ccall kirk_hs_approx_abs :: Int32 -> KirkHsP -> Ptr KirkApxT -> IO ()
+kirk_hs_approx_abs :: Int32 -> KirkHsP -> Ptr KirkApxT -> IO ()
+kirk_hs_approx_abs acc = kirk_hs_approx $ AbsAcc acc
+
+foreign export ccall kirk_hs_approx_eff :: Word32 -> KirkHsP -> Ptr KirkApxT -> IO ()
+kirk_hs_approx_eff :: Word32 -> KirkHsP -> Ptr KirkApxT -> IO ()
+kirk_hs_approx_eff eff = kirk_hs_approx $ Effort eff
+
+foreign import ccall "" kirk_real_hs_create :: KirkHsP -> IO KirkRealPtr
 
 makeHsReal :: KirkImportReal hr => hr -> IO (Ptr KirkRealT)
-makeHsReal r = do
-  acc_f <- wrap_apx_abs $ \ptr acc -> approx r (AbsAcc acc) >>= copy_apx ptr
-  eff_f <- wrap_apx_eff $ \ptr eff -> approx r (Effort eff) >>= copy_apx ptr
-  kirk_real_hs_create acc_f eff_f
+makeHsReal r = newStablePtr (approx r) >>= kirk_real_hs_create
 
 type KirkFun10 = KirkRealPtr
 type KirkFun11 = KirkRealPtr -> IO KirkRealPtr
