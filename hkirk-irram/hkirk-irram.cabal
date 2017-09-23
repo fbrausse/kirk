@@ -22,7 +22,7 @@ library
   exposed-modules:     Data.Number.Kirk.Irram
   -- other-modules:       
   other-extensions:    ForeignFunctionInterface
-  build-depends:       base >=4.9 && <4.10, hkirk >=0.1.0.0 && <0.2.0.0
+  build-depends:       base >=4.9 && <5, hkirk >=0.1.0.0 && <0.2.0.0
   ghc-options:         -Wall -fno-full-laziness
   cpp-options:         -DKIRK_HAVE_IRRAM
 
@@ -43,5 +43,5 @@ executable test-hs
   main-is: test-hs.hs
   default-language: Haskell2010
   other-extensions: ForeignFunctionInterface
-  build-depends: base >=4.9 && <4.10, hkirk >=0.1.0.0 && <0.2.0.0, hkirk-irram >=0.1.0.0 && <0.2.0.0
+  build-depends: base >=4.9 && <5, hkirk >=0.1.0.0 && <0.2.0.0, hkirk-irram >=0.1.0.0 && <0.2.0.0
   extra-libraries: kirk-irram, iRRAM
