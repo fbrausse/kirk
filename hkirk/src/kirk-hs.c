@@ -43,12 +43,18 @@ struct kirk_real_hs_t {
 	HsStablePtr p;
 };
 
+#include <stdatomic.h>
+
+static atomic_flag spin = ATOMIC_FLAG_INIT;
+
 kirk_real_t * kirk_real_hs_create(HsStablePtr p)
 {
 	kirk_real_hs_t *r = malloc(sizeof(kirk_real_hs_t));
 	kirk_real_obj_init(&r->parent);
 
+	while (atomic_flag_test_and_set(&spin));
 	hs_init(NULL, NULL);
+	atomic_flag_clear(&spin);
 
 	r->parent.parent.clazz = &kirk_real_hs_class.parent;
 	r->parent.destroy = kirk_real_hs_destroy;
@@ -61,9 +67,12 @@ static void kirk_real_hs_destroy(kirk_real_obj_t *r)
 	kirk_real_hs_t *tr = (kirk_real_hs_t *)r;
 
 	hs_free_stable_ptr(tr->p);
+
+	while (atomic_flag_test_and_set(&spin));
 	/* depends on https://git.haskell.org/ghc.git/commit/9cbcdb4863064753df0fff9054b7b7c6b3188b64
 	 * available in GHC>=8.2 */
 	hs_exit();
+	atomic_flag_clear(&spin);
 
 	free(tr);
 }
