@@ -94,14 +94,14 @@ $(call shared,$(C_OBJS)): shared/%.o: %.c Makefile
 -include $(DEPS)
 
 install: $(LIBS)
-	mkdir -p $(DESTDIR)/include && \
-		$(INSTALL) -m 0644 -t $(DESTDIR)/include $(HEADERS)
+	mkdir -p $(DESTDIR)/include/kirk && \
+		$(INSTALL) -m 0644 -t $(DESTDIR)/include/kirk $(HEADERS)
 	mkdir -p $(DESTDIR)/lib && \
 		$(INSTALL) -m 0755 -t $(DESTDIR)/lib $(DLIB) && \
 		$(INSTALL) -m 0644 -t $(DESTDIR)/lib $(SLIB)
 
 uninstall:
-	$(RM) $(addprefix $(DESTDIR)/include/,$(HEADERS))
+	$(RM) $(addprefix $(DESTDIR)/include/kirk/,$(HEADERS))
 	$(RM) $(addprefix $(DESTDIR)/lib/,$(LIBS))
 
 clean:
