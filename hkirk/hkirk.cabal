@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 tested-with:         GHC == 8.0.2
 
 Flag rounded
-  Description: Use rounded-0.1 as MPFR backend
+  Description: Use rounded-0.1.0.1 as MPFR backend
   Default    : True
 
 Flag intree
@@ -37,7 +37,7 @@ library
 
   if flag(rounded)
     cpp-options: "-DKIRK_HAVE_ROUNDED"
-    build-depends:     rounded >=0.1 && <0.2
+    build-depends:     rounded >=0.1.0.1 && <0.2
   else
     cpp-options: "-DKIRK_HAVE_HMPFR"
     build-depends:     hmpfr >=0.4.3 && <0.5

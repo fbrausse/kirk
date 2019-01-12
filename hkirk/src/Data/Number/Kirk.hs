@@ -68,7 +68,7 @@ copy_apx = copy_apx'
 #elif defined(KIRK_HAVE_ROUNDED)
 
 import Numeric.MPFR.Types (MPFR(..))
-import Numeric.RoundedSimple (Rounded,in_',out_'')
+import Numeric.Rounded.Simple (Rounded,show',withInRounded,peekRounded)
 
 type KirkMPFR = Numeric.MPFR.Types.MPFR
 
@@ -95,17 +95,19 @@ instance KirkImportReal KirkReal where
         kirk_apx_init p
         do_real_apx r p idx
         (KirkApxT bnd mpfr) <- peek p
-        rnd <- out_'' mpfr
+        rnd <- with mpfr peekRounded
         kirk_apx_fini p
         return $ Approximation bnd rnd
 
 instance Show Approximation where
   show (Approximation (KirkBoundT e m) c) =
-    "[" ++ show c ++ " +/- " ++ show m ++ "*2^(" ++ show (e-64) ++ ")]"
+    "[" ++ show' c ++ " +/- " ++ show m ++ "*2^(" ++ show (e-64) ++ ")]"
 
 copy_apx :: Ptr KirkApxT -> Approximation -> IO ()
 copy_apx ptr (Approximation bnd rnd) =
-  in_' rnd $ \mpfr -> copy_apx' ptr $ KirkApxT bnd mpfr
+  withInRounded rnd $ \mpfr_ptr -> do
+    mpfr <- peek mpfr_ptr
+    copy_apx' ptr $ KirkApxT bnd mpfr
 
 #endif
 
